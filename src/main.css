@@ -1,0 +1,158 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-Black.otf') format('opentype');
+    font-weight: 900;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-BlackItalic.otf') format('opentype');
+    font-weight: 900;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-BoldItalic.otf') format('opentype');
+    font-weight: 700;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-Book.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-BookItalic.otf') format('opentype');
+    font-weight: 400;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-Demi.otf') format('opentype');
+    font-weight: 600;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-DemiItalic.otf') format('opentype');
+    font-weight: 600;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-ExtraBold.otf') format('opentype');
+    font-weight: 800;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-ExtraBoldItalic.otf') format('opentype');
+    font-weight: 800;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-ExtraThin.otf') format('opentype');
+    font-weight: 200;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-ExtraThinItalic.otf') format('opentype');
+    font-weight: 200;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-Light.otf') format('opentype');
+    font-weight: 300;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-LightItalic.otf') format('opentype');
+    font-weight: 300;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-Medium.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-MediumItalic.otf') format('opentype');
+    font-weight: 500;
+    font-style: italic;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-Thin.otf') format('opentype');
+    font-weight: 100;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'MaisonNeueExtended';
+    src: url('../public/fonts/MaisonNeueExtended-ThinItalic.otf') format('opentype');
+    font-weight: 100;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'Montserrat';
+    src: url('../public/fonts/Montserrat-VariableFont_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: normal;
+}
+  
+@font-face {
+    font-family: 'Montserrat';
+    src: url('../public/fonts/Montserrat-Italic-VariableFont_wght.ttf') format('truetype');
+    font-weight: 100 900;
+    font-style: italic;
+}
+
+* {
+    font-family: 'Montserrat' ,sans-serif;
+}
+
+img {
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+.font-1 {
+    font-family: 'MaisonNeueExtended', sans-serif !important;
+}
+

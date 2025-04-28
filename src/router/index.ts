@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 import { RouteRecordRaw } from 'vue-router';
 import HomePage from '../views/HomePage.vue'
+import SimulationPage from '@/views/SimulationPage.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -10,8 +11,15 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/home',
     name: 'Home',
-    component: HomePage
-  }
+    component: HomePage,
+    meta: { title: "Planner - Flyght" }
+  },
+  {
+    path: '/simulation',
+    name: 'Simulation',
+    component: SimulationPage,
+    meta: { title: "Simulation - Flyght" }
+  },
 ]
 
 const router = createRouter({
