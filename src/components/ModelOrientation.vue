@@ -3,18 +3,46 @@
         <div ref="containerThree" id="containerThree" class="rounded-2xl overflow-hidden h-[20rem] w-full">
             <div ref="canvasContainer" class="viewer-container w-full h-full bg-gradient-to-br from-blue-600 to-blue-900"></div>
         </div>
-        <div class="flex p-4 bg-base-100 mt-3 justify-between items-center rounded-xl w-full">
+        <div class="flex flex-wrap gap-5 p-4 bg-base-100 mt-3 justify-between items-center rounded-xl w-full">
+            <div class="flex items-center gap-3">
+                <p class="text-xs">X</p>
+                <h2 class="text-xl font-bold">{{ acceleration.x.toFixed(2) }}</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <p class="text-xs">Y</p>
+                <h2 class="text-xl font-bold">{{ acceleration.y.toFixed(2) }}</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <p class="text-xs">Z</p>
+                <h2 class="text-xl font-bold">{{ acceleration.z.toFixed(2) }}</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <p class="text-xs">Lat</p>
+                <h2 class="text-xl font-bold">{{ gps.lat }}</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <p class="text-xs">Lon</p>
+                <h2 class="text-xl font-bold">{{ gps.lon }}</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <p class="text-xs">Alt</p>
+                <h2 class="text-xl font-bold">{{ gps.alt }}</h2>
+            </div>
+            <div class="flex items-center gap-3">
+                <p class="text-xs">Speed</p>
+                <h2 class="text-xl font-bold">{{ gps.speed }}</h2>
+            </div>
             <div class="flex items-center gap-3">
                 <p class="text-xs">Roll</p>
                 <h2 class="text-xl font-bold">{{ orientation.roll.toFixed(2) }}</h2>
             </div>
             <div class="flex items-center gap-3">
                 <p class="text-xs">Pitch</p>
-                <h2 class="text-xl font-bold">{{ orientation.roll.toFixed(2) }}</h2>
+                <h2 class="text-xl font-bold">{{ orientation.pitch.toFixed(2) }}</h2>
             </div>
             <div class="flex items-center gap-3">
                 <p class="text-xs">Yaw</p>
-                <h2 class="text-xl font-bold">{{ orientation.roll.toFixed(2) }}</h2>
+                <h2 class="text-xl font-bold">{{ orientation.yaw.toFixed(2) }}</h2>
             </div>
         </div>
     </div>
@@ -44,18 +72,34 @@ export default defineComponent({
             pitch: 0,
             yaw: 0
         })
+        const acceleration: any = ref({
+            x: 0,
+            y: 0,
+            z: 0
+        })
+        const gps: any = ref({
+            lat: 0,
+            lon: 0,
+            alt: 0,
+            speed: 0,
+        })
 
-
-        const listenGyroData = () => {
-            const gyroRef = dbRef(database, 'sensor_data/gyro/')
-
+        const listenData = () => {
+            const gyroRef = dbRef(database, 'sensor_data/')
+            
             onValue(gyroRef, (snapshot) => {
                 const data = snapshot.val()
                 if (data) {
-                    orientation.value.roll = data.roll || 0
-                    orientation.value.pitch = data.pitch || 0
-                    orientation.value.yaw = data.yaw || 0
-
+                    orientation.value.roll = data.gyro.roll || 0
+                    orientation.value.pitch = data.gyro.pitch || 0
+                    orientation.value.yaw = data.gyro.yaw || 0
+                    acceleration.value.x = data.imu.x
+                    acceleration.value.y = data.imu.y
+                    acceleration.value.z = data.imu.z
+                    gps.value.lat = data.gps.lat
+                    gps.value.lon = data.gps.lon
+                    gps.value.alt = data.gps.alt
+                    gps.value.speed = data.gps.speed
                     updateRotation(orientation.value.roll, orientation.value.pitch, orientation.value.yaw)
                 }
             })
@@ -105,7 +149,11 @@ export default defineComponent({
             console.log("GLB Loaded Successfully", gltf)
 
             if (gltf.scene) {
-                setupModel(gltf.scene)
+                setTimeout(() => {
+                    setupModel(gltf.scene)
+                    listenData()        // Pindah ke sini
+                    animate()
+                }, 500)
             } else if (gltf.scenes && gltf.scenes.length > 0) {
                 gltf.scenes.forEach((sceneItem: any) => {
                     scene.add(sceneItem)
@@ -128,6 +176,10 @@ export default defineComponent({
 
         const setupModel = (model3d: any) => {
             model = model3d
+            const box = new THREE.Box3().setFromObject(model!)
+            const center = new THREE.Vector3()
+            box.getCenter(center)
+            model?.position.sub(center)
             model?.scale.set(5, 5, 5)
             model?.position.set(0, 0, 0)
             scene.add(model!)
@@ -150,7 +202,7 @@ export default defineComponent({
         const startRendering = async () => {
             await initThreeJs()
             await loadModel("/3d/drone.glb")
-            listenGyroData()
+            listenData()
             animate()
             window.addEventListener("resize", () => {
                 if (!canvasContainer.value) return
@@ -166,9 +218,19 @@ export default defineComponent({
 
         onMounted( async() => {
             await nextTick()
-            await startRendering()
+            setTimeout(() => {
+                startRendering()
+            }, 1000)
         })
-        return { canvasContainer, containerThree, orientation }
+        return { canvasContainer, containerThree, orientation, acceleration, gps }
     }
 })
 </script>
+
+<style scoped>
+.containerThree canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+</style>

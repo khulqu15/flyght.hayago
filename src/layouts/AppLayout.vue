@@ -22,6 +22,7 @@
                             <li><a class="btn btn-sm" @click="$router.replace('Home')" :class="{'bg-blue-600 text-white hover:bg-blue-600': $route.name == 'Home'}">Condition</a></li>
                             <li><a class="btn btn-sm" @click="$router.replace('Simulation')" :class="{'bg-blue-600 text-white hover:bg-blue-600': $route.name == 'Simulation'}">Simulation</a></li>
                             <li><a class="btn btn-sm" @click="$router.replace('Home')" :class="{'bg-blue-600 text-white hover:bg-blue-600': $route.name == 'Params'}">Params</a></li>
+                            <li><a class="btn btn-sm" @click="$router.replace('Control')" :class="{'bg-blue-600 text-white hover:bg-blue-600': $route.name == 'Control'}">Control</a></li>
                         </ul>
                     </div>
                 </div>

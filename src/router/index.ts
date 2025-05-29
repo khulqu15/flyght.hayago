@@ -20,6 +20,12 @@ const routes: Array<RouteRecordRaw> = [
     component: SimulationPage,
     meta: { title: "Simulation - Flyght" }
   },
+  {
+    path: '/control',
+    name: 'Control',
+    component: () => import('@/views/ControlPage.vue'),
+    meta: { title: "Control - Flyght" }
+  },
 ]
 
 const router = createRouter({
