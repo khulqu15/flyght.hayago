@@ -6,6 +6,12 @@
         <div class="grid grid-cols-3 gap-4 justify-center items-center p-6 justify-items-center">
             <ControlThrottleView @update="updateLeft" :auto-reset="true" />
             <div>
+                <div class="form-control">
+                  <label class="label cursor-pointer">
+                    <span class="label-text">Arming</span>
+                    <input type="checkbox" v-model="isArming" @input="setArming()" class="checkbox checkbox-primary" />
+                  </label>
+                </div>
                 <div class="grid grid-cols-2 gap-4 text-center mt-4 px-6">
                     <div>
                         <p class="text-sm text-gray-400">Throttle X</p>
@@ -33,9 +39,9 @@
 <script setup lang="ts">
 import ModelOrientationVue from '@/components/ModelOrientation.vue'
 import AppLayout from '@/layouts/AppLayout.vue'
-import { ref as dbRef } from 'firebase/database'
+import { ref as dbRef, onValue } from 'firebase/database'
 import ControlThrottleView from '@/components/ControlThrottleView.vue'
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { set } from 'firebase/database'
 import { database } from '@/firebase'
 
@@ -43,6 +49,7 @@ const throttleX = ref(1500)
 const throttleY = ref(1500)
 const throttleZ = ref(1000)
 const throttleYaw = ref(1500)
+const isArming = ref(false)
 
 const scaleThrottle = (val: number) => {
   const scaled = 1500 + val * (val >= 0 ? 700 : 500)
@@ -81,4 +88,24 @@ const sendThrottle = (axis: string, value: number) => {
         .then(() => console.log(`✅ Sent ${axis}: ${value}`))
         .catch(err => console.error(`❌ Failed to send ${axis}:`, err))
 }
+
+const setArming = () => {
+  const pathRef = dbRef(database, '/throttle/is_arming')
+  isArming.value = !isArming.value
+  set(pathRef, isArming.value)
+}
+
+onMounted(() => {
+  const pathRef = dbRef(database, `/throttle`)
+  setArming()
+  onValue(pathRef, (snapshot) => {
+    const data = snapshot.val()
+    if (data) {
+      throttleX.value = data.x || 1500
+      throttleY.value = data.y || 1500
+      throttleZ.value = data.z || 1000
+      throttleYaw.value = data.yaw || 1500
+    }
+  })
+})
 </script>

@@ -45,7 +45,7 @@
             <div v-for="(drone, index) in numDrones" :key="index" class="mb-3">
                 <h2 class="text-xs font-semibold mb-1">Drone {{ index + 1 }}</h2>
                 <div class="flex justify-between text-xs mb-1">
-                <span>Sliding Surface</span><span v-if="slidingSurfaces.length > 0">{{ slidingSurfaces[index].toFixed(2) }}</span>
+                <span>Sliding Surface</span><span v-if="slidingSurfaces.length > 0">{{ slidingSurfaces[index] ? slidingSurfaces[index].toFixed(2) : '0' }}</span>
                 </div>
                 <div class="flex justify-between text-xs mb-1">
                 <span>Alpha Lattice</span><span v-if="alphaLattices.length > 0">{{ alphaLattices[index].toFixed(2) }}</span>
@@ -64,6 +64,16 @@
 
         <div ref="canvasContainer" class="viewer-container w-full h-full bg-gradient-to-br from-blue-600 to-blue-900"></div>
         <div class="absolute right-4 bottom-4 p-3 bg-base-200 flex items-center gap-3 rounded-xl">
+            <div class="flex items-center gap-2">
+                <select v-model="altitudeInput" class="select select-bordered w-full max-w-xs">
+                    <option value="5">5m</option>
+                    <option value="4">4m</option>
+                    <option value="3">3m</option>
+                    <option value="2">2m</option>
+                    <option value="1">1m</option>
+                </select>
+            </div>
+            <div class="divider lg:divider-horizontal"></div>
             <div class="flex items-center gap-2">
                 <button @click="removeDrone()" class="btn bg-base-content text-base-300 btn-sm"><Icon icon="ic:round-minus" width="18" height="18" /></button>
                 <h1>Agent ({{ numDrones }})</h1>
@@ -96,8 +106,21 @@
 
         <dialog id="flight_modal" class="modal">
             <div class="modal-box max-w-7xl">
-                <h3 class="text-lg font-bold mb-6">Flight Data</h3>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="flex justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold mb-6">Flight Data</h3>
+                    </div>
+                    <div>
+                        <div class="mb-3">
+                            <label class="text-sm font-semibold mr-2">Select Drone:</label>
+                            <select v-model="selectedDroneIndex" class="select select-bordered select-sm w-32">
+                                <option v-for="i in numDrones" :key="i" :value="i - 1">Drone {{ i }}</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="grid grid-cols-2 gap-4 overflow-y-auto">
                     <div>
                         <div id="flight3DContainer" class="w-full h-96 bg-base-200 rounded-lg"></div>
                     </div>
@@ -135,6 +158,8 @@ import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader"
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { Icon } from '@iconify/vue'
 import gsap from 'gsap'
+import * as XLSX from 'xlsx';
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -162,6 +187,8 @@ export default defineComponent({
         Icon, Line
     },
     setup() {
+        const selectedDroneIndex = ref(0);
+        const altitudeInput = ref(5)
         const containerSimulation = ref<HTMLElement | null>(null)
         const canvasContainer = ref<HTMLElement | null>(null)
         const numDrones = ref(5)
@@ -178,7 +205,7 @@ export default defineComponent({
         let particlePositions: THREE.Vector3[] = [];
         let formationParticles: THREE.Points | null = null;
         let particleSpeed = 0.01; 
-        let trajectory: { x: number; y: number; z: number, formation: string }[] = []; // Array trajektori untuk drone
+        let trajectory: { x: number; y: number; z: number, formation: string, agents: number }[] = []; // Array trajektori untuk drone
         let currentTrajectory: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
         let currentTrajectoryIndex = 0
         const slidingSurfaces = ref<number[]>([]);
@@ -213,9 +240,10 @@ export default defineComponent({
         const droneFlightData = ref<{ 
             x: number, y: number, z: number, 
             roll: number, pitch: number, yaw: number, 
-            time: number, droneId: number, formation: string
+            time: number, droneId: number, formation: string,
+            x_ref?: number, y_ref?: number, z_ref?: number,
+            roll_ref?: number, pitch_ref?: number, yaw_ref?: number
         }[]>([])
-
         
         const flightPositionChartData = ref<any>(null)
         const flightRollChartData = ref<any>(null)
@@ -308,6 +336,7 @@ export default defineComponent({
                 scene.add(trailLine);
             }
         };
+        
         const renderStartEndMarkers = () => {
             scene.children
                 .filter(child => child.name === "startMarkerF" || child.name === "endMarker")
@@ -347,13 +376,20 @@ export default defineComponent({
                     x: applyError(drone.model.position.x, errorFactor/2),
                     y: applyError(drone.model.position.y, errorFactor/2),
                     z: applyError(drone.model.position.z, errorFactor/2),
+                    x_ref: drone.model.position.x,
+                    y_ref: drone.model.position.y,
+                    z_ref: drone.model.position.z,
                     roll: applyError(orientation.value.roll + 0.05, errorFactor*2),
                     pitch: applyError(orientation.value.pitch + 0.05, errorFactor*2),
                     yaw: applyError(orientation.value.yaw + 0.05, errorFactor*2),
+                    roll_ref: orientation.value.roll,
+                    pitch_ref: orientation.value.pitch,
+                    yaw_ref: orientation.value.yaw,
                     time: performance.now() / 1000,
                     droneId: i,
                     formation: formationType.value
                 });
+
             });
             renderDroneTrail3D();
 
@@ -449,6 +485,13 @@ export default defineComponent({
                             if (index < propPositions.length) {
                                 const [x, y, z] = propPositions[index]
                                 part.position.set(x, y, z)
+
+                                drone.traverse((child) => {
+                                    if (child instanceof THREE.Mesh) {
+                                        child.material.transparent = true;
+                                        child.material.opacity = 0.4;
+                                    }
+                                });
                             }
                         })
 
@@ -640,49 +683,58 @@ export default defineComponent({
                 const formationZ = radiusY * Math.sin(angle);
 
                 drone.model.position.x = formationCenter.value.x + formationX;
-                drone.model.position.y = formationCenter.value.y;
+                // drone.model.position.y = formationCenter.value.y;
+                drone.model.position.y = altitudeInput.value;
                 drone.model.position.z = formationCenter.value.z + formationZ;
             });
         };
 
         const showFlightCharts = () => {
             const errorFactor = calculateErrorFactor();
+            const droneId = selectedDroneIndex.value;
 
-            const times = droneFlightData.value.map(d => d.time.toFixed(2));
-            const xs = droneFlightData.value.map(d => applyError(d.x, errorFactor));
-            const ys = droneFlightData.value.map(d => applyError(d.y, errorFactor));
-            const zs = droneFlightData.value.map(d => applyError(d.z, errorFactor));
-            const roll = droneFlightData.value.map(d => applyError(d.roll, errorFactor));
-            const pitch = droneFlightData.value.map(d => applyError(d.pitch, errorFactor));
-            const yaw = droneFlightData.value.map(d => applyError(d.yaw, errorFactor));
-
-            flightPositionChartData.value = {
-                labels: times,
-                datasets: [
-                    { label: 'X Position', data: xs, borderColor: 'red', backgroundColor: 'red', fill: false },
-                    { label: 'Y Position', data: ys, borderColor: 'green', backgroundColor: 'green', fill: false },
-                    { label: 'Z Position', data: zs, borderColor: 'blue', backgroundColor: 'blue', fill: false }
-                ]
-            }
+            const droneData = droneFlightData.value.filter(d => d.droneId === droneId);
+            const times = droneData.map(d => d.time.toFixed(2));
+            const roll = droneData.map(d => applyError(d.roll, errorFactor));
+            const pitch = droneData.map(d => applyError(d.pitch, errorFactor));
+            const yaw = droneData.map(d => applyError(d.yaw, errorFactor));
 
             flightRollChartData.value = {
                 labels: times,
                 datasets: [
-                    { label: 'Roll (°)', data: roll, borderColor: 'purple', backgroundColor: 'purple', fill: false }
+                    {
+                        label: `Drone ${droneId + 1} - Roll (°)`,
+                        data: roll,
+                        borderColor: 'purple',
+                        backgroundColor: 'purple',
+                        fill: false
+                    }
                 ]
             }
 
             flightPitchChartData.value = {
                 labels: times,
                 datasets: [
-                    { label: 'Pitch (°)', data: pitch, borderColor: 'orange', backgroundColor: 'orange', fill: false }
+                    {
+                        label: `Drone ${droneId + 1} - Pitch (°)`,
+                        data: pitch,
+                        borderColor: 'orange',
+                        backgroundColor: 'orange',
+                        fill: false
+                    }
                 ]
             }
 
             flightYawChartData.value = {
                 labels: times,
                 datasets: [
-                    { label: 'Yaw (°)', data: yaw, borderColor: 'cyan', backgroundColor: 'cyan', fill: false }
+                    {
+                        label: `Drone ${droneId + 1} - Yaw (°)`,
+                        data: yaw,
+                        borderColor: 'cyan',
+                        backgroundColor: 'cyan',
+                        fill: false
+                    }
                 ]
             }
 
@@ -708,11 +760,11 @@ export default defineComponent({
             const droneCount = Math.max(...droneFlightData.value.map(d => d.droneId)) + 1;
 
             for (let i = 0; i < droneCount; i++) {
-                const droneData = droneFlightData.value.filter(d => d.droneId === i);
-                const points = droneData.map(d => new THREE.Vector3(d.x, d.y, d.z));
+                const data = droneFlightData.value.filter(d => d.droneId === i);
+                const points = data.map(d => new THREE.Vector3(d.x, d.y, d.z));
                 const geometry = new THREE.BufferGeometry().setFromPoints(points);
                 const material = new THREE.LineBasicMaterial({
-                color: colorPalette[i % colorPalette.length],
+                    color: colorPalette[i % colorPalette.length],
                     linewidth: 2
                 });
                 const line = new THREE.Line(geometry, material);
@@ -720,62 +772,55 @@ export default defineComponent({
             }
 
             const formationSnapshots: { time: number, type: string, positions: THREE.Vector3[] }[] = [];
-
             let lastFormation = '';
             let snapshot: { time: number, type: string, positions: THREE.Vector3[] } | null = null;
 
-
             droneFlightData.value.forEach(data => {
                 if (data.formation !== lastFormation) {
-                if (snapshot) formationSnapshots.push(snapshot);
-                snapshot = {
-                    time: data.time,
-                    type: data.formation,
-                    positions: []
-                };
-                lastFormation = data.formation;
+                    if (snapshot) formationSnapshots.push(snapshot);
+                    snapshot = {
+                        time: data.time,
+                        type: data.formation,
+                        positions: []
+                    };
+                    lastFormation = data.formation;
                 }
                 if (snapshot) {
-                snapshot.positions.push(new THREE.Vector3(data.x, data.y, data.z));
+                    snapshot.positions.push(new THREE.Vector3(data.x, data.y, data.z));
                 }
             });
-            if (snapshot) {
-                formationSnapshots.push(snapshot);
-            }
+            if (snapshot) formationSnapshots.push(snapshot);
+
             formationSnapshots.forEach(snap => {
                 if (snap.positions.length > 1) {
-                const points = [...snap.positions, snap.positions[0].clone()]; // Close loop
-                const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                const material = new THREE.LineDashedMaterial({
-                    color: 0xffffff,
-                    linewidth: 1,
-                    dashSize: 1,
-                    gapSize: 0.5,
-                    transparent: true
-                });
-                const formationLine = new THREE.Line(geometry, material);
-                formationLine.computeLineDistances();
-
-                if (snap.type === 'ellipse') {
-                    formationLine.scale.set(1.2, 1, 0.6); // Stretch X, Compress Z
-                }
-
-                scene.add(formationLine);
+                    const points = [...snap.positions, snap.positions[0].clone()];
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const material = new THREE.LineDashedMaterial({
+                        color: 0xffffff,
+                        linewidth: 1,
+                        dashSize: 1,
+                        gapSize: 0.5,
+                        transparent: true
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    line.computeLineDistances();
+                    if (snap.type === 'ellipse') {
+                        line.scale.set(1.2, 1, 0.6);
+                    }
+                    scene.add(line);
                 }
             });
 
-            // Animation
             const animate = () => {
                 requestAnimationFrame(animate);
                 controls.update();
                 renderer.render(scene, camera);
-            }
+            };
             animate();
+
             const modal = document.getElementById('flight_modal') as HTMLDialogElement;
             if (modal) modal.showModal();
-            console.log("FLIGHTS DATA")
-            console.log(flightPitchChartData)
-        }
+        };
 
         const playSimulation = (continueSimulation = false) => {
             isPlaying.value = true;
@@ -818,14 +863,6 @@ export default defineComponent({
                     onUpdate: updateFormationLine
                 });
 
-                // gsap.to({}, {
-                //     delay: delay + (2 / speed.value) / 2,
-                //     onComplete: () => {
-                //         formationType.value = point.formation;
-                //         updateFormation();
-                //     }
-                // });
-
                 gsap.to(formationCenter.value, {
                     x: point.x,
                     y: point.y,
@@ -834,8 +871,11 @@ export default defineComponent({
                     delay: delay,
                     ease: "power2.out",
                     onUpdate: () => {
-                        formationType.value = point.formation;
-                        updateDronesPosition();
+                        formationType.value = point.formation
+                        updateDronesPosition()
+                    },
+                    onStart: () => {
+                        if (typeof point.agents === 'number') adjustAgentsToWaypoint(point.agents)
                     }
                 });
 
@@ -848,7 +888,9 @@ export default defineComponent({
                     
                     gsap.to(drone.model.position, {
                         x: point.x + formationX,
-                        y: point.y,
+                        y: (index === 0 || index === 1) 
+                            ? point.y 
+                            : point.y + Math.cos(formationAngle) * 1.2,
                         z: point.z + formationZ,
                         duration: 2 / speed.value,
                         delay: delay,
@@ -856,10 +898,10 @@ export default defineComponent({
                         onUpdate: updateFormationLine,
                         onComplete: () => {
                             if (index === trajectory.length - 1) {
-                                updateFormation()
+                                updateFormation();
                                 isPlaying.value = false;
                                 isPropellerRotating.value = false;
-                                showFlightCharts()
+                                showFlightCharts();
                             }
                         },
                     });
@@ -874,7 +916,24 @@ export default defineComponent({
             });
             startRealtimeError();
         };
+        
+        const getReferencePosition = (index: number, timeSec: number) => {
+            const radiusX = diameter.value / 2;
+            const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
+            const angle = (index / numDrones.value) * Math.PI * 2;
+            const x = formationCenter.value.x + radiusX * Math.cos(angle);
+            const y = altitudeInput.value;
+            const z = formationCenter.value.z + radiusY * Math.sin(angle);
+            return { x, y, z };
+        }
 
+        const twistingSlidingControl = (e: number, edot: number, edotdot: number, lambda: number, k: number, eta: number) => {
+            const s = edot + lambda * e;
+            const sdot = edotdot + lambda * edot;
+
+            const u_tsmc = -k * Math.sign(s) - eta * Math.sign(sdot);
+            return u_tsmc;
+        }
 
         const startRealtimeError = () => {
             if (errorInterval) clearInterval(errorInterval);
@@ -905,44 +964,95 @@ export default defineComponent({
 
         const initializeTrajectory = () => {
             trajectory = [
-                { x: 0, y: 3, z: 0, formation: 'circle'},
-                { x: 28, y: 3, z: 0, formation: 'ellipse'},
-                { x: 50, y: 3, z: -10, formation: 'circle' },
-                { x: 75, y: 5, z: 0, formation: 'cricle' },
-                { x: 75, y: 3, z: 0, formation: 'ellipse' },
-                { x: 98, y: 3, z: 0, formation: 'circle' },
-                { x: 110, y: 3, z: 0, formation: 'circle' },
-                { x: 110, y: 3, z: 20, formation: 'circle' },
-                { x: 0, y: 3, z: 20, formation: 'circle' },
-                { x: 0, y: 3, z: 0, formation: 'circle' },
-                { x: 0, y: 0.1, z: 0, formation: 'circle' },
+                { x: 0, y: altitudeInput.value, z: 0, formation: 'circle', agents: 5},
+                { x: 28, y: altitudeInput.value, z: 0, formation: 'ellipse', agents: 5},
+                { x: 50, y: altitudeInput.value, z: -10, formation: 'circle', agents: 5},
+                { x: 75, y: altitudeInput.value + 1, z: 0, formation: 'cricle', agents: 4},
+                { x: 75, y: altitudeInput.value - 1, z: 0, formation: 'ellipse', agents: 4},
+                { x: 98, y: altitudeInput.value + 1, z: 0, formation: 'circle', agents: 5},
+                { x: 110, y: altitudeInput.value, z: 0, formation: 'circle', agents: 5},
+                { x: 110, y: altitudeInput.value, z: 20, formation: 'circle', agents: 6},
+                { x: 0, y: altitudeInput.value, z: 20, formation: 'circle', agents: 5},
+                { x: 0, y: altitudeInput.value, z: 0, formation: 'circle', agents: 4},
+                { x: 0, y: 0.1, z: 0, formation: 'circle', agents: 5},
             ];
         };
 
-        const animate = () => {
-            requestAnimationFrame(animate)
-            controls.update()
-            updateRotation(orientation.value.roll, orientation.value.pitch, orientation.value.yaw)
-            if (isPropellerRotating.value) {
-                updateSpeed()
+        const adjustAgentsToWaypoint = async (desiredCount: number) => {
+            const currentCount = numDrones.value;
+            if (desiredCount > currentCount) {
+                for (let i = 0; i < desiredCount - currentCount; i++) {
+                    for (let i = 0; i < desiredCount - currentCount; i++) await addDrone(true);
+                }
+            } else if (desiredCount < currentCount) {
+                for (let i = 0; i < currentCount - desiredCount; i++) removeDrone(true);
             }
+            updateFormation()
+        };
+
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+            controls.update();
+
+            updateRotation(orientation.value.roll, orientation.value.pitch, orientation.value.yaw);
+
+            if (isPropellerRotating.value) {
+                updateSpeed();
+            }
+
             if (isPlaying.value) {
                 recordDronePositions();
-                const timeSec = performance.now() / 1000;
 
-                drones.forEach((_, i) => {
+                const timeSec = performance.now() / 1000;
+                const lambda = 1.2;
+                const k = 0.8;
+                const eta = 0.3;
+
+                const tsmcChecked = (document.querySelector("#tsmcCheckbox") as HTMLInputElement)?.checked ?? true;
+
+                drones.forEach((drone, i) => {
+                    const ref = getReferencePosition(i, timeSec);
+                    const pos = drone.model.position;
+
+                    const error = {
+                        x: ref.x - pos.x,
+                        y: ref.y - pos.y,
+                        z: ref.z - pos.z
+                    };
+                    const edot = {
+                        x: (Math.random() - 0.5) * 0.02,
+                        y: (Math.random() - 0.5) * 0.02,
+                        z: (Math.random() - 0.5) * 0.02
+                    };
+
+                    const edotdot = { x: 0, y: 0, z: 0 }; // second derivative not modeled in this simulation
+
+                    if (tsmcChecked) {
+                        const ux = twistingSlidingControl(error.x, edot.x, edotdot.x, lambda, k, eta);
+                        const uy = twistingSlidingControl(error.y, edot.y, edotdot.y, lambda, k, eta);
+                        const uz = twistingSlidingControl(error.z, edot.z, edotdot.z, lambda, k, eta);
+
+                        drone.model.position.x += ux * 0.05;
+                        drone.model.position.y += uy * 0.05;
+                        drone.model.position.z += uz * 0.05;
+                    }
+
+                    rotorData.value[i].rpm = 5000 + Math.random() * 500;
+                    rotorData.value[i].thrust = 2.0 + Math.random() * 0.2;
+
                     calculateTSMCAdjustment(i, timeSec);
                     calculateFlockingAlphaAdjustment(i, timeSec);
                     calculateEKFEstimationQuality(i, timeSec);
                     calculateBearingMeasurementError(i, timeSec);
-                    rotorData.value[i].rpm = 5000 + Math.random() * 500;
-                    rotorData.value[i].thrust = 2.0 + Math.random() * 0.2;
                 });
-                generateMethodParameters()
+
+                generateMethodParameters();
             }
-            updateWind()
-            renderer.render(scene, camera)
-        }
+
+            updateWind();
+            renderer.render(scene, camera);
+        };
 
         const addDrone = async (increment = true) => {
             const newDrone = await loadDroneModel()
@@ -950,32 +1060,62 @@ export default defineComponent({
             if(increment) {
                 numDrones.value++
                 rotorData.value.push({ rpm: 0, thrust: 0 });
-                    if (isPlaying.value) {
-                        const startX = currentTrajectory.x + (Math.random() - 0.5) * 10;
-                        const startZ = currentTrajectory.z + (Math.random() - 0.5) * 10;
-                        newDrone.model.position.set(startX, currentTrajectory.y, startZ);
+                if (isPlaying.value) {
+                    const startX = currentTrajectory.x + (Math.random() - 0.5) * 10;
+                    const startZ = currentTrajectory.z + (Math.random() - 0.5) * 10;
+                    newDrone.model.position.set(startX, currentTrajectory.y, startZ);
 
-                        const formationAngle = ((numDrones.value - 1) / numDrones.value) * Math.PI * 2;
-                        const radiusX = diameter.value / 2;
-                        const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
-                        const targetX = currentTrajectory.x + radiusX * Math.cos(formationAngle);
-                        const targetZ = currentTrajectory.z + radiusY * Math.sin(formationAngle);
+                    const formationAngle = ((numDrones.value - 1) / numDrones.value) * Math.PI * 2;
+                    const radiusX = diameter.value / 2;
+                    const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
+                    const targetX = currentTrajectory.x + radiusX * Math.cos(formationAngle);
+                    const targetZ = currentTrajectory.z + radiusY * Math.sin(formationAngle);
 
-                        gsap.to(newDrone.model.position, {
-                            x: targetX,
-                            y: currentTrajectory.y,
-                            z: targetZ,
-                            duration: 2,
-                            ease: "power2.out",
-                            onComplete: () => {
-                                console.log("Drone baru berhasil masuk ke formasi.");
-                            }
-                        });
-                    } else {
-                    const randomX = (Math.random() - 0.5) * 20
-                    const randomZ = (Math.random() - 0.5) * 20
-                    newDrone.model.position.set(randomX, 0, randomZ)
+                    gsap.to(newDrone.model.position, {
+                        x: targetX,
+                        y: currentTrajectory.y,
+                        z: targetZ,
+                        duration: 2,
+                        ease: "power2.out",
+                        onComplete: () => {
+                            console.log("Drone baru berhasil masuk ke formasi.");
+                            updateFormation()
+                        }
+                    });
+                    gsap.to(newDrone.model.rotation, {
+                        y: Math.atan2(targetZ, targetX),
+                        duration: 1.5,
+                        ease: "power2.out"
+                    });
+
+                    setTimeout(() => updateFormation(), 2100);
+                } else {
+                    const randomX = (Math.random() - 0.5) * 5
+                    const randomZ = (Math.random() - 0.5) * 5
+                    const altitude = trajectory[0]?.y ?? 0.1;
+                    newDrone.model.position.set(randomX, altitude, randomZ)
                     
+                    const i = drones.length - 1;
+                    const angle = (i / numDrones.value) * Math.PI * 2;
+                    const radiusX = diameter.value / 2;
+                    const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
+                    const formationX = radiusX * Math.cos(angle);
+                    const formationZ = radiusY * Math.sin(angle);
+
+                    gsap.to(newDrone.model.position, {
+                        x: formationX,
+                        y: 0.1,
+                        z: formationZ,
+                        duration: 1.5,
+                        ease: "power2.out"
+                    })
+
+                    gsap.to(newDrone.model.rotation, {
+                        y: Math.atan2(formationZ, formationX),
+                        duration: 1.2,
+                        ease: "power2.out"
+                    });
+
                     drones.forEach((drone, i) => {
                         const angle = (i / numDrones.value) * Math.PI * 2
                         const radiusX = diameter.value / 2
@@ -993,26 +1133,33 @@ export default defineComponent({
                         }
                         transition()
                     })
-                    updateFormation()
+                    setTimeout(() => updateFormation(), 1600);
                 }
             }
         }
 
-        const removeDrone = () => {
+        const removeDrone = (smooth: boolean = false) => {
             if (drones.length > 0) {
                 const drone = drones.pop();
                 if (drone) {
-                    gsap.to(drone.model.position, {
-                        y: 10,
-                        duration: 1,
-                        ease: "power2.out",
-                        onComplete: () => {
-                            scene.remove(drone.model);
-                            numDrones.value--;
-                            rotorData.value.pop();
-                            updateFormation();
-                        }
-                    });
+                    if(smooth) {
+                        gsap.to(drone.model.position, {
+                            y: 10,
+                            duration: 1,
+                            ease: "power2.out",
+                            onComplete: () => {
+                                scene.remove(drone.model);
+                                numDrones.value--;
+                                rotorData.value.pop();
+                                updateFormation();
+                            }
+                        });
+                    } else {
+                        scene.remove(drone.model)
+                        numDrones.value--;
+                        rotorData.value.pop();
+                        updateFormation();
+                    }
                 }
             }
         };
@@ -1097,39 +1244,43 @@ export default defineComponent({
         }
 
         const downloadFlightData = () => {
-            if (droneFlightData.value.length === 0) {
-                alert("No flight data to download!");
-                return;
+            const errorFactor = calculateErrorFactor();
+            const droneCount = Math.max(...droneFlightData.value.map(d => d.droneId)) + 1;
+
+            const workbook = XLSX.utils.book_new();
+
+            for (let droneId = 0; droneId < droneCount; droneId++) {
+                const data = droneFlightData.value.filter(d => d.droneId === droneId);
+
+                const rows = data.map(row => ({
+                    Time: row.time.toFixed(2),
+                    DroneID: row.droneId,
+                    X: row.x.toFixed(3),
+                    Y: row.y.toFixed(3),
+                    Z: row.z.toFixed(3),
+                    X_ref: row.x_ref?.toFixed(3),
+                    Y_ref: row.y_ref?.toFixed(3),
+                    Z_ref: row.z_ref?.toFixed(3),
+                    Error_X: row.x_ref ? (row.x - row.x_ref).toFixed(3) : '',
+                    Error_Y: row.y_ref ? (row.y - row.y_ref).toFixed(3) : '',
+                    Error_Z: row.z_ref ? (row.z - row.z_ref).toFixed(3) : '',
+                    Roll: row.roll.toFixed(2),
+                    Pitch: row.pitch.toFixed(2),
+                    Yaw: row.yaw.toFixed(2),
+                    Roll_ref: row.roll_ref?.toFixed(2),
+                    Pitch_ref: row.pitch_ref?.toFixed(2),
+                    Yaw_ref: row.yaw_ref?.toFixed(2),
+                    Error_Roll: row.roll_ref ? (row.roll - row.roll_ref).toFixed(2) : '',
+                    Error_Pitch: row.pitch_ref ? (row.pitch - row.pitch_ref).toFixed(2) : '',
+                    Error_Yaw: row.yaw_ref ? (row.yaw - row.yaw_ref).toFixed(2) : '',
+                    Formation: row.formation
+                }));
+
+                const worksheet = XLSX.utils.json_to_sheet(rows);
+                XLSX.utils.book_append_sheet(workbook, worksheet, `Drone_${droneId + 1}`);
             }
 
-            let csvContent = "data:text/csv;charset=utf-8,";
-            const headers = ["time", "droneId", "x", "y", "z", "roll", "pitch", "yaw", "formation"];
-            csvContent += headers.join(",") + "\n";
-
-            const errorFactor = calculateErrorFactor();
-
-            droneFlightData.value.forEach(row => {
-                const line = [
-                row.time.toFixed(2),
-                row.droneId,
-                row.x.toFixed(3),
-                row.y.toFixed(3),
-                row.z.toFixed(3),
-                applyError(parseFloat(row.roll.toFixed(2)), errorFactor),
-                applyError(parseFloat(row.pitch.toFixed(2)), errorFactor),
-                applyError(parseFloat(row.yaw.toFixed(2)), errorFactor),
-                row.formation
-                ].join(",");
-                csvContent += line + "\n";
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "flight_data.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            XLSX.writeFile(workbook, 'FlightData_AllDrones.xlsx');
         };
 
 
@@ -1145,9 +1296,12 @@ export default defineComponent({
         watch(speed, updateSpeed)
         watch(diameter, updateFormation)
         watch(formationType, updateFormation)
+        watch(selectedDroneIndex, showFlightCharts)
 
         return { 
             canvasContainer, 
+            altitudeInput,
+            selectedDroneIndex,
             containerSimulation, 
             orientation,
             updateSpeed,

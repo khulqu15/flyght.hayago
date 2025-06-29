@@ -11,6 +11,11 @@
                         </label>
                     </div>
                     <div class="flex items-center w-full">
+                        <img src="/logo.png" alt="FLYGHT" class="w-12 rounded-xl">
+                        <div class="mx-2 flex items-center px-2 gap-2 w-full">
+                            <h1 class="font-bold italic text-2xl">Engineering Physics</h1>
+                            <p class="text-xs badge bg-blue-600 text-white">ITS</p>
+                        </div>
                         <img src="/logo.svg" alt="FLYGHT" class="w-12">
                         <div class="mx-2 flex items-center px-2 gap-2 w-full">
                             <h1 class="font-bold italic text-2xl">FLYGHT</h1>
