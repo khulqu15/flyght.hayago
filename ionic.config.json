@@ -1,0 +1,7 @@
+{
+  "name": "hayago.flyght",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}
