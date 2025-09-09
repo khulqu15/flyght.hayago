@@ -94,49 +94,151 @@
             </div>
             <div class="divider lg:divider-horizontal"></div>
             <div>
-                <button @click="togglePropellerRotation()" class="btn bg-blue-500 btn-sm text-white">
-                    <Icon v-if="!isPropellerRotating" icon="solar:play-bold" width="18" height="18" />
-                    <Icon v-if="isPropellerRotating" icon="ri:stop-fill" width="18" height="18" />
+                <button @click="openScenarioModal" class="btn bg-blue-500 btn-sm text-white">
+                    <Icon icon="solar:play-bold" width="18" height="18" />
                 </button>
             </div>
         </div>
 
-        <dialog id="flight_modal" class="modal">
-            <div class="modal-box max-w-7xl">
-                <div class="flex justify-between">
-                    <div>
-                        <h3 class="text-lg font-bold mb-6">Flight Data</h3>
-                    </div>
-                    <div>
-                        <div class="mb-3">
-                            <label class="text-sm font-semibold mr-2">Select Drone:</label>
-                            <select v-model="selectedDroneIndex" class="select select-bordered select-sm w-32">
-                                <option v-for="i in numDrones" :key="i" :value="i - 1">Drone {{ i }}</option>
-                            </select>
+        <!-- Modal Pilih Skenario (versi ditingkatkan) -->
+        <dialog id="scenario_select_modal" class="modal">
+            <div
+                class="modal-box max-w-4xl p-0 overflow-hidden"
+                @keydown.enter.prevent="confirmScenario"
+            >
+                <!-- Header -->
+                <div class="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-bold">Pilih Skenario</h3>
+                    <p class="text-xs opacity-90">Pilih salah satu, lalu klik <b>Run</b> atau tekan <b>Enter</b>.</p>
+                </div>
+                <form method="dialog">
+                    <button class="btn btn-sm">Close</button>
+                </form>
+                </div>
+
+                <!-- List skenario -->
+                <div class="p-4 space-y-3 max-h-[65vh] overflow-y-auto">
+                <label
+                    v-for="s in scenarios"
+                    :key="s.id"
+                    class="card bg-base-200 text-base-content border hover:shadow-md transition cursor-pointer"
+                    :class="{'ring-2 ring-offset-2 ring-blue-500': selectedScenario === s.id}"
+                >
+                    <div class="card-body p-4">
+                    <div class="flex items-start gap-4">
+                        <input
+                        type="radio"
+                        class="radio radio-primary mt-1"
+                        v-model="selectedScenario"
+                        :value="s.id"
+                        />
+                        <div class="flex-1">
+                        <div class="flex items-start justify-between">
+                            <div>
+                            <div class="font-semibold">{{ s.title }}</div>
+                            <p class="text-xs opacity-80" v-html="s.desc"></p>
+                            </div>
+                            <Icon :icon="s.icon" width="22" height="22" class="opacity-70"/>
+                        </div>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <span class="badge badge-outline">{{ s.traj }}</span>
+                            <span class="badge badge-outline">Formasi: {{ s.form }}</span>
+                            <span class="badge badge-outline">{{ s.alt }}</span>
+                            <span v-if="s.id===6" class="badge badge-success">Wall ON</span>
+                            <span v-else class="badge badge-ghost">Wall OFF</span>
+                        </div>
                         </div>
                     </div>
-
+                    </div>
+                </label>
                 </div>
-                <div class="grid grid-cols-2 gap-4 overflow-y-auto">
+
+                <!-- Footer -->
+                <div class="px-6 py-4 flex items-center justify-between bg-base-100">
+                <div class="text-xs opacity-70">
+                    <span v-if="selectedScenario===6" class="text-success">Objek wall akan ditampilkan.</span>
+                    <span v-else>Objek wall disembunyikan (kecuali Skenario 6).</span>
+                </div>
+                <div class="space-x-2">
+                    <form method="dialog" class="inline">
+                    <button class="btn">Cancel</button>
+                    </form>
+                    <button class="btn btn-primary" :disabled="selectedScenario===null" @click="confirmScenario">Run</button>
+                </div>
+                </div>
+            </div>
+        </dialog>
+
+
+        <!-- Modal Flight Data (versi ditingkatkan) -->
+        <dialog id="flight_modal" class="modal">
+            <div class="modal-box max-w-7xl">
+                <!-- Header -->
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h3 class="text-lg font-bold mb-2">Flight Data</h3>
+                        <p class="text-xs opacity-70">Pilih drone & tampilan metrik di kanan atas.</p>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Drone -->
+                        <label class="text-sm font-semibold mr-1">Drone:</label>
+                        <select v-model="selectedDroneIndex" class="select select-bordered select-sm w-32">
+                            <option v-for="i in numDrones" :key="i" :value="i - 1">Drone {{ i }}</option>
+                        </select>
+
+                        <!-- View -->
+                        <label class="text-sm font-semibold ml-3 mr-1">View:</label>
+                        <select v-model="chartView" class="select select-bordered select-sm">
+                            <option value="orientation">Orientation (Roll/Pitch/Yaw)</option>
+                            <option value="position">Position (X/Y/Z)</option>
+                            <option value="single">Single Metric</option>
+                        </select>
+
+                        <!-- Metric (muncul kalau single) -->
+                        <select v-if="chartView==='single'" v-model="metric" class="select select-bordered select-sm">
+                            <option value="roll">Roll (°)</option>
+                            <option value="pitch">Pitch (°)</option>
+                            <option value="yaw">Yaw (°)</option>
+                            <option value="x">X (m)</option>
+                            <option value="y">Y (m)</option>
+                            <option value="z">Z (m)</option>
+                        </select>
+
+                        <!-- Smoothing -->
+                        <label class="label cursor-pointer ml-2">
+                            <span class="label-text text-xs mr-2">Smoothing</span>
+                            <input type="checkbox" class="toggle toggle-xs" v-model="smoothing" />
+                        </label>
+                        <input
+                        v-if="smoothing"
+                        type="range"
+                        class="range range-xs w-28"
+                        min="3" max="21" step="2"
+                        v-model.number="smoothWindow"
+                        :title="`Window: ${smoothWindow}`"
+                        />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mt-4">
                     <div>
                         <div id="flight3DContainer" class="w-full h-96 bg-base-200 rounded-lg"></div>
                     </div>
-                    <div>
-                        <div class="flex flex-col justify-between h-96 gap-2">
-                            <div class="flex-1">
-                            <Line v-if="flightRollChartData" :data="flightRollChartData" :options="flightChartOptions" class="w-full h-full" />
-                            </div>
-                            <div class="flex-1">
-                            <Line v-if="flightPitchChartData" :data="flightPitchChartData" :options="flightChartOptions" class="w-full h-full" />
-                            </div>
-                            <div class="flex-1">
-                            <Line v-if="flightYawChartData" :data="flightYawChartData" :options="flightChartOptions" class="w-full h-full" />
-                            </div>
+
+                    <div class="flex flex-col gap-3">
+                        <div v-if="chartView!=='single'" class="h-96">
+                            <Line v-if="flightCombinedChartData" :data="flightCombinedChartData" :options="flightChartOptions" class="w-full h-full" />
+                        </div>
+                        <div v-else class="h-96">
+                            <Line v-if="flightSingleChartData" :data="flightSingleChartData" :options="flightChartOptions" class="w-full h-full" />
                         </div>
                     </div>
                 </div>
                 <p class="py-4">Press ESC key or click the button below to close</p>
-                <div class="modal-action mt-20">
+                <div class="modal-action mt-4">
                     <form method="dialog">
                         <button class="btn mx-2">Close</button>
                         <button class="btn bg-blue-600 text-white" @click="downloadFlightData()">Download CSV</button>
@@ -144,6 +246,7 @@
                 </div>
             </div>
         </dialog>
+
     </div>
 </template>
 
@@ -189,9 +292,19 @@ export default defineComponent({
         const containerSimulation = ref<HTMLElement | null>(null)
         const canvasContainer = ref<HTMLElement | null>(null)
         const numDrones = ref(5)
-        const formationType = ref('circle')
-        const isPropellerRotating = ref(false)
+        type Formation = 'circle' | 'ellipse'
+        type AltPattern = 'equal' | 'staggered'
+        type Waypoint = {
+        x: number; y: number; z: number;
+        formation: Formation;
+        agents: number;
+        altPattern?: AltPattern;
+        }
 
+        let trajectory: Waypoint[] = []
+        const formationType = ref<Formation>('circle')
+        const isPropellerRotating = ref(false)
+        
         let scene: THREE.Scene
         let camera: THREE.PerspectiveCamera
         let renderer: THREE.WebGLRenderer
@@ -202,7 +315,41 @@ export default defineComponent({
         let particlePositions: THREE.Vector3[] = [];
         let formationParticles: THREE.Points | null = null;
         let particleSpeed = 0.01; 
-        let trajectory: { x: number; y: number; z: number, formation: string, agents: number }[] = []; // Array trajektori untuk drone
+        const selectedScenario = ref<number|null>(null)
+        const lastScenario = ref<number|null>(null)
+
+        const chartView = ref<'orientation'|'position'|'single'>('orientation')
+        const metric = ref<'roll'|'pitch'|'yaw'|'x'|'y'|'z'>('roll')
+        const smoothing = ref(false)
+        const smoothWindow = ref(7)
+
+        const flightCombinedChartData = ref<any>(null)
+        const flightSingleChartData = ref<any>(null)
+
+        const SERIES_COLOR: Record<string, string> = {
+            roll: '#8b5cf6',  // violet-500
+            pitch: '#f59e0b', // amber-500
+            yaw: '#06b6d4',   // cyan-500
+            x: '#ef4444',     // red-500
+            y: '#22c55e',     // green-500
+            z: '#3b82f6'      // blue-600
+        }
+
+        const movAvg = (arr: number[], w: number) => {
+            if (w < 3 || w % 2 === 0) return arr
+            const half = Math.floor(w/2)
+            const out: number[] = new Array(arr.length).fill(0)
+            for (let i=0; i<arr.length; i++) {
+                let sum = 0, cnt = 0
+                for (let j=-half; j<=half; j++) {
+                    const k = i + j
+                    if (k>=0 && k<arr.length) { sum += arr[k]; cnt++ }
+                }
+                out[i] = sum / cnt
+            }
+            return out
+        }
+
         let currentTrajectory: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
         let currentTrajectoryIndex = 0
         const slidingSurfaces = ref<number[]>([]);
@@ -211,11 +358,153 @@ export default defineComponent({
         const bearingNoises = ref<number[]>([]);
         const controllerRates = ref<number[]>([]);
 
+        const scenarios = [
+        {
+            id: 1,
+            title: 'Skenario 1',
+            desc: 'Trayektori persegi, formasi <b>lingkaran</b>, ketinggian antar agent <b>sama</b>.',
+            traj: 'Trayektori: Persegi',
+            form: 'Lingkaran',
+            alt: 'Altitude: Sama',
+            icon: 'ph:square'
+        },
+        {
+            id: 2,
+            title: 'Skenario 2',
+            desc: 'Trayektori <b>jurus miring</b> (campuran lurus & diagonal), formasi <b>lingkaran</b>. Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
+            traj: 'Trayektori: Jurus miring',
+            form: 'Lingkaran',
+            alt: 'Altitude: Lurus sama, diagonal berbeda',
+            icon: 'ph:trend-up'
+        },
+        {
+            id: 3,
+            title: 'Skenario 3',
+            desc: 'Trayektori persegi, formasi <b>elips</b>, ketinggian antar agent <b>sama</b>.',
+            traj: 'Trayektori: Persegi',
+            form: 'Elips',
+            alt: 'Altitude: Sama',
+            icon: 'mdi:ellipse-outline'
+        },
+        {
+            id: 4,
+            title: 'Skenario 4',
+            desc: 'Trayektori <b>jurus miring</b>, formasi <b>elips</b>. Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
+            traj: 'Trayektori: Jurus miring',
+            form: 'Elips',
+            alt: 'Altitude: Lurus sama, diagonal berbeda',
+            icon: 'ph:trend-up'
+        },
+        {
+            id: 5,
+            title: 'Skenario 5',
+            desc: 'Trayektori <b>jurus miring</b> dengan formasi <b>berubah-ubah</b> (lingkaran ⇄ elips). Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
+            traj: 'Trayektori: Jurus miring',
+            form: 'Berganti',
+            alt: 'Altitude: Lurus sama, diagonal berbeda',
+            icon: 'ph:arrows-left-right'
+        },
+        {
+            id: 6,
+            title: 'Skenario 6',
+            desc: 'Skenario <b>awal (legacy)</b>: trayektori campuran (perubahan agent & formasi), <b>wall ON</b>.',
+            traj: 'Trayektori: Legacy campuran',
+            form: 'Campuran',
+            alt: 'Altitude: Sesuai legacy',
+            icon: 'ph:clock-counter-clockwise'
+        }
+        ]
+
         const orientation: any = ref({
             roll: 0,
             pitch: 0,
             yaw: 0
         })
+        
+        const openScenarioModal = () => {
+            const modal = document.getElementById('scenario_select_modal') as HTMLDialogElement | null;
+            modal?.showModal();
+        };
+
+        const isScenario6 = ref(false);
+        const updateScenarioObjectsVisibility = () => { if (wallModel) wallModel.visible = !!isScenario6.value };
+
+        const makeSquareTrajectory = (formation: Formation): Waypoint[] => {
+            const y = altitudeInput.value
+            const a = 0, b = 24
+            return [
+                { x:a, y, z:a, altPattern:'equal' as const, formation, agents: numDrones.value },
+                { x:b, y, z:a, altPattern:'equal' as const, formation, agents: numDrones.value },
+                { x:b, y, z:b, altPattern:'equal' as const, formation, agents: numDrones.value },
+                { x:a, y, z:b, altPattern:'equal' as const, formation, agents: numDrones.value },
+                { x:a, y, z:a, altPattern:'equal' as const, formation, agents: numDrones.value },
+                { x:a, y:0.1, z:a, altPattern:'equal' as const, formation, agents: numDrones.value },
+            ] satisfies Waypoint[]
+        }
+
+        const makeLegacyInitialTrajectory = (): Waypoint[] => {
+            const y = altitudeInput.value
+            return [
+                { x:  0, y,      z:  0,  formation: 'circle',  agents: 5, altPattern: 'equal' },
+                { x: 28, y,      z:  0,  formation: 'ellipse', agents: 5, altPattern: 'equal' },
+                { x: 50, y,      z:-10,  formation: 'circle',  agents: 5, altPattern: 'equal' },
+                { x: 75, y: y+1, z:  0,  formation: 'circle',  agents: 4, altPattern: 'equal' },
+                { x: 75, y: y-1, z:  0,  formation: 'ellipse', agents: 4, altPattern: 'equal' },
+                { x: 98, y: y+1, z:  0,  formation: 'circle',  agents: 5, altPattern: 'equal' },
+                { x:110, y,      z:  0,  formation: 'circle',  agents: 5, altPattern: 'equal' },
+                { x:110, y,      z: 20,  formation: 'circle',  agents: 6, altPattern: 'equal' },
+                { x:  0, y,      z: 20,  formation: 'circle',  agents: 5, altPattern: 'equal' },
+                { x:  0, y,      z:  0,  formation: 'circle',  agents: 4, altPattern: 'equal' },
+                { x:  0, y:0.1,  z:  0,  formation: 'circle',  agents: 5, altPattern: 'equal' },
+            ] satisfies Waypoint[]
+        }
+
+        const makeMixedStraightDiagonal = (baseFormation: Formation, alternateFormation = false): Waypoint[] => {
+            const y = altitudeInput.value
+            const raw = [
+                { x:  0, y, z:  0, altPattern:'equal'     as const },
+                { x: 10, y, z:  0, altPattern:'equal'     as const },
+                { x: 20, y, z: 10, altPattern:'staggered' as const },
+                { x: 30, y, z: 10, altPattern:'equal'     as const },
+                { x: 40, y, z: 20, altPattern:'staggered' as const },
+                { x: 50, y, z: 20, altPattern:'equal'     as const },
+                { x: 60, y, z: 30, altPattern:'staggered' as const },
+                { x: 70, y, z: 30, altPattern:'equal'     as const },
+                { x: 80, y, z: 40, altPattern:'staggered' as const },
+                { x: 80, y, z: 40, altPattern:'equal'     as const },
+                { x:  0, y, z:  0, altPattern:'equal'     as const },
+                { x:  0, y:0.1, z:0, altPattern:'equal'   as const },
+            ] as const
+
+            return raw.map((p, i) => ({
+                ...p,
+                formation: (alternateFormation ? (i % 2 === 0 ? 'circle' : 'ellipse') : baseFormation) as Formation,
+                agents: numDrones.value
+            })) as Waypoint[]
+        }
+
+        const runScenario = (id: number) => {
+            if (id === 1) trajectory = makeSquareTrajectory('circle');
+            else if (id === 2) trajectory = makeMixedStraightDiagonal('circle', false);
+            else if (id === 3) trajectory = makeSquareTrajectory('ellipse');
+            else if (id === 4) trajectory = makeMixedStraightDiagonal('ellipse', false);
+            else if (id === 5) trajectory = makeMixedStraightDiagonal('circle', true);
+            else if (id === 6) trajectory = makeLegacyInitialTrajectory();
+
+            isScenario6.value = (id === 6);
+            updateScenarioObjectsVisibility();
+
+            const modal = document.getElementById('scenario_select_modal') as HTMLDialogElement | null;
+            modal?.close();
+            isPropellerRotating.value = true;
+            playSimulation();
+        };
+
+        const confirmScenario = () => {
+            if (selectedScenario.value == null) return
+            lastScenario.value = selectedScenario.value
+            runScenario(selectedScenario.value)
+        }
         
         const generateMethodParameters = () => {
             slidingSurfaces.value = [];
@@ -687,137 +976,140 @@ export default defineComponent({
         };
 
         const showFlightCharts = () => {
-            const errorFactor = calculateErrorFactor();
-            const droneId = selectedDroneIndex.value;
+            const errorFactor = calculateErrorFactor()
+            const droneId = selectedDroneIndex.value
+            const data = droneFlightData.value.filter(d => d.droneId === droneId)
+            if (data.length === 0) return
 
-            const droneData = droneFlightData.value.filter(d => d.droneId === droneId);
-            const times = droneData.map(d => d.time.toFixed(2));
-            const roll = droneData.map(d => applyError(d.roll, errorFactor));
-            const pitch = droneData.map(d => applyError(d.pitch, errorFactor));
-            const yaw = droneData.map(d => applyError(d.yaw, errorFactor));
+            const times = data.map(d => Number(d.time.toFixed(2)))
+            const rollRaw  = data.map(d => applyError(d.roll,  errorFactor))
+            const pitchRaw = data.map(d => applyError(d.pitch, errorFactor))
+            const yawRaw   = data.map(d => applyError(d.yaw,   errorFactor))
+            const xRaw = data.map(d => d.x)
+            const yRaw = data.map(d => d.y)
+            const zRaw = data.map(d => d.z)
 
-            flightRollChartData.value = {
-                labels: times,
-                datasets: [
-                    {
-                        label: `Drone ${droneId + 1} - Roll (°)`,
-                        data: roll,
-                        borderColor: 'purple',
-                        backgroundColor: 'purple',
-                        fill: false
-                    }
-                ]
+            const maybeSmooth = (arr: number[]) => smoothing.value ? movAvg(arr, smoothWindow.value) : arr
+
+            const setChartMeta = (title: string, yLabel: string) => {
+                flightChartOptions.plugins.title.text = title
+                // @ts-ignore
+                flightChartOptions.scales.y.title.text = yLabel
+                // @ts-ignore
+                flightChartOptions.scales.x.title.text = 'Time (s)'
             }
 
-            flightPitchChartData.value = {
+            if (chartView.value === 'orientation') {
+                setChartMeta(`Drone ${droneId+1} — Orientation`, 'Angle (°)')
+                flightCombinedChartData.value = {
                 labels: times,
                 datasets: [
-                    {
-                        label: `Drone ${droneId + 1} - Pitch (°)`,
-                        data: pitch,
-                        borderColor: 'orange',
-                        backgroundColor: 'orange',
-                        fill: false
-                    }
+                    { label: 'Roll (°)',  data: maybeSmooth(rollRaw),  borderColor: SERIES_COLOR.roll,  backgroundColor: SERIES_COLOR.roll,  tension: 0.25, fill: false },
+                    { label: 'Pitch (°)', data: maybeSmooth(pitchRaw), borderColor: SERIES_COLOR.pitch, backgroundColor: SERIES_COLOR.pitch, tension: 0.25, fill: false },
+                    { label: 'Yaw (°)',   data: maybeSmooth(yawRaw),   borderColor: SERIES_COLOR.yaw,   backgroundColor: SERIES_COLOR.yaw,   tension: 0.25, fill: false },
                 ]
-            }
-
-            flightYawChartData.value = {
+                }
+                flightSingleChartData.value = null
+            } else if (chartView.value === 'position') {
+                setChartMeta(`Drone ${droneId+1} — Position`, 'Distance (m)')
+                flightCombinedChartData.value = {
                 labels: times,
                 datasets: [
-                    {
-                        label: `Drone ${droneId + 1} - Yaw (°)`,
-                        data: yaw,
-                        borderColor: 'cyan',
-                        backgroundColor: 'cyan',
-                        fill: false
-                    }
+                    { label: 'X (m)', data: maybeSmooth(xRaw), borderColor: SERIES_COLOR.x, backgroundColor: SERIES_COLOR.x, tension: 0.25, fill: false },
+                    { label: 'Y (m)', data: maybeSmooth(yRaw), borderColor: SERIES_COLOR.y, backgroundColor: SERIES_COLOR.y, tension: 0.25, fill: false },
+                    { label: 'Z (m)', data: maybeSmooth(zRaw), borderColor: SERIES_COLOR.z, backgroundColor: SERIES_COLOR.z, tension: 0.25, fill: false },
                 ]
+                }
+                flightSingleChartData.value = null
+            } else {
+                const map: Record<string, {label: string, unit: string, series: number[]}> = {
+                    roll:  { label: 'Roll',  unit: '°', series: rollRaw },
+                    pitch: { label: 'Pitch', unit: '°', series: pitchRaw },
+                    yaw:   { label: 'Yaw',   unit: '°', series: yawRaw },
+                    x:     { label: 'X',     unit: 'm', series: xRaw },
+                    y:     { label: 'Y',     unit: 'm', series: yRaw },
+                    z:     { label: 'Z',     unit: 'm', series: zRaw },
+                }
+                const m = map[metric.value]
+                setChartMeta(`Drone ${droneId+1} — ${m.label}`, `${m.label} (${m.unit})`)
+                flightSingleChartData.value = {
+                    labels: times,
+                    datasets: [
+                        { label: `${m.label} (${m.unit})`, data: maybeSmooth(m.series), borderColor: SERIES_COLOR[metric.value], backgroundColor: SERIES_COLOR[metric.value], tension: 0.25, fill: false }
+                    ]
+                }
+                flightCombinedChartData.value = null
             }
 
-            const container = document.getElementById('flight3DContainer');
-            if (!container) return;
-            container.innerHTML = '';
+            const container = document.getElementById('flight3DContainer')
+            if (!container) return
+            container.innerHTML = ''
 
-            const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            container.appendChild(renderer.domElement);
+            const scene = new THREE.Scene()
+            const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000)
+            const renderer = new THREE.WebGLRenderer({ antialias: true })
+            renderer.setSize(container.clientWidth, container.clientHeight)
+            container.appendChild(renderer.domElement)
 
-            camera.position.set(20, 20, 20);
-            camera.lookAt(0, 0, 0);
+            camera.position.set(20, 20, 20)
+            camera.lookAt(0, 0, 0)
 
-            const light = new THREE.PointLight(0xffffff, 1);
-            light.position.set(10, 10, 10);
-            scene.add(light);
+            const light = new THREE.PointLight(0xffffff, 1)
+            light.position.set(10, 10, 10)
+            scene.add(light)
 
-            const controls = new OrbitControls(camera, renderer.domElement);
+            const controls = new OrbitControls(camera, renderer.domElement)
 
-            const droneCount = Math.max(...droneFlightData.value.map(d => d.droneId)) + 1;
-
+            const droneCount = Math.max(...droneFlightData.value.map(d => d.droneId)) + 1
             for (let i = 0; i < droneCount; i++) {
-                const data = droneFlightData.value.filter(d => d.droneId === i);
-                const points = data.map(d => new THREE.Vector3(d.x, d.y, d.z));
-                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const d = droneFlightData.value.filter(dd => dd.droneId === i)
+                if (d.length < 2) continue
+                const points = d.map(dd => new THREE.Vector3(dd.x, dd.y, dd.z))
+                const geometry = new THREE.BufferGeometry().setFromPoints(points)
                 const material = new THREE.LineBasicMaterial({
-                    color: colorPalette[i % colorPalette.length],
-                    linewidth: 2
-                });
-                const line = new THREE.Line(geometry, material);
-                scene.add(line);
+                color: colorPalette[i % colorPalette.length],
+                linewidth: 2
+                })
+                const line = new THREE.Line(geometry, material)
+                scene.add(line)
             }
 
-            const formationSnapshots: { time: number, type: string, positions: THREE.Vector3[] }[] = [];
-            let lastFormation = '';
-            let snapshot: { time: number, type: string, positions: THREE.Vector3[] } | null = null;
+            const formationSnapshots: { time: number, type: string, positions: THREE.Vector3[] }[] = []
+            let lastFormation = ''
+            let snapshot: { time: number, type: string, positions: THREE.Vector3[] } | null = null
 
-            droneFlightData.value.forEach(data => {
-                if (data.formation !== lastFormation) {
-                    if (snapshot) formationSnapshots.push(snapshot);
-                    snapshot = {
-                        time: data.time,
-                        type: data.formation,
-                        positions: []
-                    };
-                    lastFormation = data.formation;
+            droneFlightData.value.forEach(d => {
+                if (d.formation !== lastFormation) {
+                if (snapshot) formationSnapshots.push(snapshot)
+                snapshot = { time: d.time, type: d.formation, positions: [] }
+                lastFormation = d.formation
                 }
-                if (snapshot) {
-                    snapshot.positions.push(new THREE.Vector3(data.x, data.y, data.z));
-                }
-            });
-            if (snapshot) formationSnapshots.push(snapshot);
+                snapshot?.positions.push(new THREE.Vector3(d.x, d.y, d.z))
+            })
+            if (snapshot) formationSnapshots.push(snapshot)
 
             formationSnapshots.forEach(snap => {
                 if (snap.positions.length > 1) {
-                    const points = [...snap.positions, snap.positions[0].clone()];
-                    const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                    const material = new THREE.LineDashedMaterial({
-                        color: 0xffffff,
-                        linewidth: 1,
-                        dashSize: 1,
-                        gapSize: 0.5,
-                        transparent: true
-                    });
-                    const line = new THREE.Line(geometry, material);
-                    line.computeLineDistances();
-                    if (snap.type === 'ellipse') {
-                        line.scale.set(1.2, 1, 0.6);
-                    }
-                    scene.add(line);
+                const points = [...snap.positions, snap.positions[0].clone()]
+                const geometry = new THREE.BufferGeometry().setFromPoints(points)
+                const material = new THREE.LineDashedMaterial({
+                    color: 0xffffff, linewidth: 1, dashSize: 1, gapSize: 0.5, transparent: true
+                })
+                const line = new THREE.Line(geometry, material)
+                line.computeLineDistances()
+                if (snap.type === 'ellipse') line.scale.set(1.2, 1, 0.6)
+                scene.add(line)
                 }
-            });
-
-            const animate = () => {
-                requestAnimationFrame(animate);
-                controls.update();
-                renderer.render(scene, camera);
-            };
-            animate();
-
-            const modal = document.getElementById('flight_modal') as HTMLDialogElement;
-            if (modal) modal.showModal();
-        };
+            })
+            const animateLocal = () => {
+                requestAnimationFrame(animateLocal)
+                controls.update()
+                renderer.render(scene, camera)
+            }
+            animateLocal()
+            const modal = document.getElementById('flight_modal') as HTMLDialogElement
+            if (modal && !modal.open) modal.showModal()
+        }
 
         const playSimulation = (continueSimulation = false) => {
             isPlaying.value = true;
@@ -882,24 +1174,28 @@ export default defineComponent({
                     const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
                     const formationX = radiusX * Math.cos(formationAngle);
                     const formationZ = radiusY * Math.sin(formationAngle);
-                    
+
+                    const baseY = point.y;
+                    const amp = 0.6;
+                    const yTarget = (point.altPattern === 'staggered')
+                        ? baseY + Math.sin(formationAngle * 2 + i * 0.7) * amp
+                        : baseY;
+
                     gsap.to(drone.model.position, {
                         x: point.x + formationX,
-                        y: (index === 0 || index === 1) 
-                            ? point.y 
-                            : point.y + Math.cos(formationAngle) * 1.2,
+                        y: yTarget,
                         z: point.z + formationZ,
                         duration: 2 / speed.value,
                         delay: delay,
                         ease: "power2.out",
                         onUpdate: updateFormationLine,
                         onComplete: () => {
-                            if (index === trajectory.length - 1) {
-                                updateFormation();
-                                isPlaying.value = false;
-                                isPropellerRotating.value = false;
-                                showFlightCharts();
-                            }
+                        if (index === trajectory.length - 1) {
+                            updateFormation();
+                            isPlaying.value = false;
+                            isPropellerRotating.value = false;
+                            showFlightCharts();
+                        }
                         },
                     });
 
@@ -910,10 +1206,13 @@ export default defineComponent({
                         ease: "power2.out",
                     });
                 });
+
             });
             startRealtimeError();
         };
-        
+
+        watch([selectedDroneIndex, chartView, metric, smoothing, smoothWindow], showFlightCharts)
+
         const getReferencePosition = (index: number, timeSec: number) => {
             const radiusX = diameter.value / 2;
             const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
@@ -927,14 +1226,12 @@ export default defineComponent({
         const twistingSlidingControl = (e: number, edot: number, edotdot: number, lambda: number, k: number, eta: number) => {
             const s = edot + lambda * e;
             const sdot = edotdot + lambda * edot;
-
             const u_tsmc = -k * Math.sign(s) - eta * Math.sign(sdot);
             return u_tsmc;
         }
 
         const startRealtimeError = () => {
             if (errorInterval) clearInterval(errorInterval);
-
             errorInterval = setInterval(() => {
                 drones.forEach(drone => {
                     const errorFactor = 0.05 * diameter.value;
@@ -954,25 +1251,11 @@ export default defineComponent({
         };
 
         const togglePropellerRotation = () => {
-            isPropellerRotating.value = !isPropellerRotating.value
-            playSimulation()
-        }
-
+            openScenarioModal();
+        };
 
         const initializeTrajectory = () => {
-            trajectory = [
-                { x: 0, y: altitudeInput.value, z: 0, formation: 'circle', agents: 5},
-                { x: 28, y: altitudeInput.value, z: 0, formation: 'ellipse', agents: 5},
-                { x: 50, y: altitudeInput.value, z: -10, formation: 'circle', agents: 5},
-                { x: 75, y: altitudeInput.value + 1, z: 0, formation: 'cricle', agents: 4},
-                { x: 75, y: altitudeInput.value - 1, z: 0, formation: 'ellipse', agents: 4},
-                { x: 98, y: altitudeInput.value + 1, z: 0, formation: 'circle', agents: 5},
-                { x: 110, y: altitudeInput.value, z: 0, formation: 'circle', agents: 5},
-                { x: 110, y: altitudeInput.value, z: 20, formation: 'circle', agents: 6},
-                { x: 0, y: altitudeInput.value, z: 20, formation: 'circle', agents: 5},
-                { x: 0, y: altitudeInput.value, z: 0, formation: 'circle', agents: 4},
-                { x: 0, y: 0.1, z: 0, formation: 'circle', agents: 5},
-            ];
+            trajectory = makeSquareTrajectory('circle');
         };
 
         const adjustAgentsToWaypoint = async (desiredCount: number) => {
@@ -1023,13 +1306,11 @@ export default defineComponent({
                     const startX = currentTrajectory.x + (Math.random() - 0.5) * 10;
                     const startZ = currentTrajectory.z + (Math.random() - 0.5) * 10;
                     newDrone.model.position.set(startX, currentTrajectory.y, startZ);
-
                     const formationAngle = ((numDrones.value - 1) / numDrones.value) * Math.PI * 2;
                     const radiusX = diameter.value / 2;
                     const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
                     const targetX = currentTrajectory.x + radiusX * Math.cos(formationAngle);
                     const targetZ = currentTrajectory.z + radiusY * Math.sin(formationAngle);
-
                     gsap.to(newDrone.model.position, {
                         x: targetX,
                         y: currentTrajectory.y,
@@ -1046,21 +1327,18 @@ export default defineComponent({
                         duration: 1.5,
                         ease: "power2.out"
                     });
-
                     setTimeout(() => updateFormation(), 2100);
                 } else {
                     const randomX = (Math.random() - 0.5) * 5
                     const randomZ = (Math.random() - 0.5) * 5
                     const altitude = trajectory[0]?.y ?? 0.1;
                     newDrone.model.position.set(randomX, altitude, randomZ)
-                    
                     const i = drones.length - 1;
                     const angle = (i / numDrones.value) * Math.PI * 2;
                     const radiusX = diameter.value / 2;
                     const radiusY = formationType.value === "circle" ? radiusX : radiusX * 0.6;
                     const formationX = radiusX * Math.cos(angle);
                     const formationZ = radiusY * Math.sin(angle);
-
                     gsap.to(newDrone.model.position, {
                         x: formationX,
                         y: 0.1,
@@ -1068,13 +1346,11 @@ export default defineComponent({
                         duration: 1.5,
                         ease: "power2.out"
                     })
-
                     gsap.to(newDrone.model.rotation, {
                         y: Math.atan2(formationZ, formationX),
                         duration: 1.2,
                         ease: "power2.out"
                     });
-
                     drones.forEach((drone, i) => {
                         const angle = (i / numDrones.value) * Math.PI * 2
                         const radiusX = diameter.value / 2
@@ -1129,9 +1405,7 @@ export default defineComponent({
             const wind = windSpeed.value;
             const dynamicDisturbance = Math.sin(timeSec * 0.5) * wind * 0.05;
             const gravityCompensation = 9.807 - 0.01 * rpm / 100;
-
             const robustness = slidingSurface / (1 + dynamicDisturbance) - gravityCompensation;
-
             return Math.max(0, robustness);
         };
 
@@ -1140,33 +1414,27 @@ export default defineComponent({
             const thrust = rotorData.value[droneIndex]?.thrust ?? 2.0;
             const rotationalNoise = Math.abs(Math.cos(timeSec * 0.3)) * 0.1;
             const windImpact = Math.pow(windSpeed.value * 0.02, 2);
-
             const spacingError = (alphaLattice + windImpact + rotationalNoise) / (1 + thrust);
-
             return spacingError;
         };
 
-            const calculateEKFEstimationQuality = (droneIndex: number, timeSec: number) => {
+        const calculateEKFEstimationQuality = (droneIndex: number, timeSec: number) => {
             const baseCovariance = covarianceTraces.value[droneIndex] || 0.02;
             const windEffect = Math.exp(-windSpeed.value * 0.1);
             const updateRateImpact = 1 / (controllerRates.value[droneIndex] ?? 100);
             const timeDecay = 1 + 0.02 * timeSec;
-
             const covariance = baseCovariance * windEffect * updateRateImpact * timeDecay;
-
             return Math.min(covariance, 1);
-            };
+        };
 
-            const calculateBearingMeasurementError = (droneIndex: number, timeSec: number) => {
+        const calculateBearingMeasurementError = (droneIndex: number, timeSec: number) => {
             const baseNoise = bearingNoises.value[droneIndex] || 0.002;
             const windEffect = Math.abs(Math.sin(timeSec * 0.2)) * (windSpeed.value * 0.001);
             const vibrationEffect = (rotorData.value[droneIndex]?.rpm ?? 5000) * 0.0000005;
             const randomDrift = (Math.random() - 0.5) * 0.0005;
-
             const totalError = baseNoise + windEffect + vibrationEffect + randomDrift;
-
             return Math.max(0, totalError);
-            };
+        };
 
 
         const updateSpeed = () => {
@@ -1180,18 +1448,15 @@ export default defineComponent({
         const startRendering = async () => {
             await initThreeJs()
             await loadWallModel()
+            updateScenarioObjectsVisibility()
             addGround()
             drawFormationLine()
-            
             initializeTrajectory();
-
             for (let i = 0; i < numDrones.value; i++) {
                 await addDrone(false)
                 await updateFormation()
             }
-            // listenGyroData()
             animate()
-
             window.addEventListener("resize", () => {
                 if (!canvasContainer.value) return
                 const newWidth = canvasContainer.value.clientWidth
@@ -1205,12 +1470,9 @@ export default defineComponent({
         const downloadFlightData = () => {
             const errorFactor = calculateErrorFactor();
             const droneCount = Math.max(...droneFlightData.value.map(d => d.droneId)) + 1;
-
             const workbook = XLSX.utils.book_new();
-
             for (let droneId = 0; droneId < droneCount; droneId++) {
                 const data = droneFlightData.value.filter(d => d.droneId === droneId);
-
                 const rows = data.map(row => ({
                     Time: row.time.toFixed(2),
                     DroneID: row.droneId,
@@ -1234,14 +1496,11 @@ export default defineComponent({
                     Error_Yaw: row.yaw_ref ? (row.yaw - row.yaw_ref).toFixed(2) : '',
                     Formation: row.formation
                 }));
-
                 const worksheet = XLSX.utils.json_to_sheet(rows);
                 XLSX.utils.book_append_sheet(workbook, worksheet, `Drone_${droneId + 1}`);
             }
-
             XLSX.writeFile(workbook, 'FlightData_AllDrones.xlsx');
         };
-
 
         onMounted(async () => {
             await nextTick()
@@ -1274,6 +1533,8 @@ export default defineComponent({
             diameter,
             isPropellerRotating,
             flightPositionChartData,
+            openScenarioModal,
+            runScenario,
             flightRollChartData,
             flightPitchChartData,
             flightYawChartData,
@@ -1288,6 +1549,15 @@ export default defineComponent({
             covarianceTraces,
             bearingNoises,
             controllerRates,
+            scenarios,
+            selectedScenario,
+            confirmScenario,
+            chartView,
+            metric,
+            smoothing,
+            smoothWindow,
+            flightCombinedChartData,
+            flightSingleChartData,
         }
     }
 })

@@ -19,17 +19,17 @@ export default defineComponent({
 
             L.marker([-7.276331, 112.793840])
                 .addTo(map)
-                .bindPopup('Kantor Hayago')
+                .bindPopup('Kantor Sencra')
                 .openPopup()
 
             const customIcon = L.icon({
-                iconUrl: 'https://hayago.id/logo.png',
+                iconUrl: 'https://Sencra.id/logo.png',
                 iconSize: [20, 20],
             })
 
             L.marker([-7.276717, 112.794976], {icon: customIcon})
                 .addTo(map)
-                .bindPopup('Drone Hayago')
+                .bindPopup('Drone Sencra')
 
             console.log(map)
             setTimeout(() => {

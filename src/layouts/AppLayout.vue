@@ -28,7 +28,7 @@
                         <img src="/logo.svg" alt="FLYGHT" class="w-12">
                         <div class="mx-2 flex items-center px-2 gap-2 w-full">
                             <h1 class="font-bold italic text-2xl">FLYGHT</h1>
-                            <p class="text-xs badge bg-blue-600 text-white">Hayago</p>
+                            <p class="text-xs badge bg-blue-600 text-white">Sencra</p>
                         </div>
                     </div>
                     <div class="hidden flex-none lg:block">
@@ -60,14 +60,6 @@
   
 <script lang="ts">
 import { IonContent, IonPage } from '@ionic/vue';
-
-export default {
-    components: { IonContent, IonPage },
-    setup() {
-        return {
-
-        }
-    }
-}
+export default { components: { IonContent, IonPage } }
 </script>
   

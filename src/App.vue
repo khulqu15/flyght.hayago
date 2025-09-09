@@ -8,6 +8,6 @@
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
 import { onMounted } from 'vue';
 onMounted(() => {
-  document.title = "Flyght by Hayago"
+  document.title = "Flyght by Sencra"
 })
 </script>
