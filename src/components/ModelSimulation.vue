@@ -45,16 +45,16 @@
             <div v-for="(drone, index) in numDrones" :key="index" class="mb-3">
                 <h2 class="text-xs font-semibold mb-1">Drone {{ index + 1 }}</h2>
                 <div class="flex justify-between text-xs mb-1">
-                <span>Sliding Surface</span><span v-if="slidingSurfaces.length > 0">{{ slidingSurfaces[index] != undefined ? slidingSurfaces[index].toFixed(2) : '0' }}</span>
+                    <span>Sliding Surface</span><span v-if="slidingSurfaces.length > 0">{{ slidingSurfaces[index] != undefined ? slidingSurfaces[index].toFixed(2) : '0' }}</span>
                 </div>
                 <div class="flex justify-between text-xs mb-1">
-                <span>Alpha Lattice</span><span v-if="alphaLattices.length > 0">{{ alphaLattices[index] != undefined ? alphaLattices[index].toFixed(2) : '0' }}</span>
+                    <span>Alpha Lattice</span><span v-if="alphaLattices.length > 0">{{ alphaLattices[index] != undefined ? alphaLattices[index].toFixed(2) : '0' }}</span>
                 </div>
                 <div class="flex justify-between text-xs mb-1">
-                <span>Covariance Trace</span><span v-if="covarianceTraces.length > 0">{{ covarianceTraces[index] != undefined ? covarianceTraces[index].toFixed(2) : '0' }}</span>
+                    <span>Covariance Trace</span><span v-if="covarianceTraces.length > 0">{{ covarianceTraces[index] != undefined ? covarianceTraces[index].toFixed(2) : '0' }}</span>
                 </div>
                 <div class="flex justify-between text-xs mb-1">
-                <span>Bearing Noise</span><span v-if="bearingNoises.length > 0">{{ bearingNoises[index] != undefined ? bearingNoises[index].toFixed(3) : '0' }}</span>
+                    <span>Bearing Noise</span><span v-if="bearingNoises.length > 0">{{ bearingNoises[index] != undefined ? bearingNoises[index].toFixed(3) : '0' }}</span>
                 </div>
             </div>
         </div>
@@ -122,7 +122,7 @@
                 <label
                     v-for="s in scenarios"
                     :key="s.id"
-                    class="card bg-base-200 text-base-content border hover:shadow-md transition cursor-pointer"
+                    class="card bg-base-200 border-base-200 text-base-content border hover:shadow-md transition cursor-pointer"
                     :class="{'ring-2 ring-offset-2 ring-blue-500': selectedScenario === s.id}"
                 >
                     <div class="card-body p-4">
@@ -133,7 +133,6 @@
                         v-model="selectedScenario"
                         :value="s.id"
                         />
-                        <div class="flex-1">
                         <div class="flex items-start justify-between">
                             <div>
                             <div class="font-semibold">{{ s.title }}</div>
@@ -150,22 +149,21 @@
                         </div>
                         </div>
                     </div>
-                    </div>
                 </label>
                 </div>
 
                 <!-- Footer -->
                 <div class="px-6 py-4 flex items-center justify-between bg-base-100">
-                <div class="text-xs opacity-70">
-                    <span v-if="selectedScenario===6" class="text-success">Objek wall akan ditampilkan.</span>
-                    <span v-else>Objek wall disembunyikan (kecuali Skenario 6).</span>
-                </div>
-                <div class="space-x-2">
-                    <form method="dialog" class="inline">
-                    <button class="btn">Cancel</button>
-                    </form>
-                    <button class="btn btn-primary" :disabled="selectedScenario===null" @click="confirmScenario">Run</button>
-                </div>
+                    <div class="text-xs opacity-70">
+                        <span v-if="selectedScenario===6" class="text-success">Objek wall akan ditampilkan.</span>
+                        <span v-else>Objek wall disembunyikan (kecuali Skenario 6).</span>
+                    </div>
+                    <div class="space-x-2">
+                        <form method="dialog" class="inline">
+                        <button class="btn">Cancel</button>
+                        </form>
+                        <button class="btn btn-primary" :disabled="selectedScenario===null" @click="confirmScenario">Run</button>
+                    </div>
                 </div>
             </div>
         </dialog>
@@ -194,6 +192,7 @@
                         <select v-model="chartView" class="select select-bordered select-sm">
                             <option value="orientation">Orientation (Roll/Pitch/Yaw)</option>
                             <option value="position">Position (X/Y/Z)</option>
+                            <option value="pwm">PWM (1/2/3/4)</option>
                             <option value="single">Single Metric</option>
                         </select>
 
@@ -205,6 +204,12 @@
                             <option value="x">X (m)</option>
                             <option value="y">Y (m)</option>
                             <option value="z">Z (m)</option>
+                            <option value="pwm1">PWM 1 (µs)</option>
+                            <option value="pwm2">PWM 2 (µs)</option>
+                            <option value="pwm3">PWM 3 (µs)</option>
+                            <option value="pwm4">PWM 4 (µs)</option>
+                            <option value="massKg">Mass (kg)</option>
+                            <option value="windDisturbance">Wind Disturbance</option>
                         </select>
 
                         <!-- Smoothing -->
@@ -295,16 +300,15 @@ export default defineComponent({
         type Formation = 'circle' | 'ellipse'
         type AltPattern = 'equal' | 'staggered'
         type Waypoint = {
-        x: number; y: number; z: number;
-        formation: Formation;
-        agents: number;
-        altPattern?: AltPattern;
+            x: number; y: number; z: number;
+            formation: Formation;
+            agents: number;
+            altPattern?: AltPattern;
         }
-
+        
         let trajectory: Waypoint[] = []
         const formationType = ref<Formation>('circle')
         const isPropellerRotating = ref(false)
-        
         let scene: THREE.Scene
         let camera: THREE.PerspectiveCamera
         let renderer: THREE.WebGLRenderer
@@ -317,22 +321,68 @@ export default defineComponent({
         let particleSpeed = 0.01; 
         const selectedScenario = ref<number|null>(null)
         const lastScenario = ref<number|null>(null)
-
-        const chartView = ref<'orientation'|'position'|'single'>('orientation')
-        const metric = ref<'roll'|'pitch'|'yaw'|'x'|'y'|'z'>('roll')
+        type MetricKey = | 'roll' | 'pitch' | 'yaw' | 'x' | 'y' | 'z' | 'pwm1' | 'pwm2' | 'pwm3' | 'pwm4' | 'massKg' | 'windDisturbance'
+        const chartView = ref<'orientation' | 'position' | 'pwm' | 'single'>('orientation')
+        const metric = ref<MetricKey>('roll')
         const smoothing = ref(false)
         const smoothWindow = ref(7)
-
         const flightCombinedChartData = ref<any>(null)
         const flightSingleChartData = ref<any>(null)
-
         const SERIES_COLOR: Record<string, string> = {
-            roll: '#8b5cf6',  // violet-500
-            pitch: '#f59e0b', // amber-500
-            yaw: '#06b6d4',   // cyan-500
-            x: '#ef4444',     // red-500
-            y: '#22c55e',     // green-500
-            z: '#3b82f6'      // blue-600
+            roll: '#8b5cf6',
+            pitch: '#f59e0b',
+            yaw: '#06b6d4',
+            x: '#ef4444',
+            y: '#22c55e',
+            z: '#3b82f6',
+            pwm1: '#fb7185',
+            pwm2: '#f97316',
+            pwm3: '#14b8a6',
+            pwm4: '#6366f1',
+            massKg: '#64748b',
+            windDisturbance: '#84cc16'
+        }
+        const droneMassKg = ref(1.2)
+        const PWM_MIN = 1000
+        const PWM_MAX = 2000
+        const RPM_MAX = 6000
+        const droneAttitudes = ref<{ roll: number; pitch: number; yaw: number }[]>([])
+        const initDroneAttitudes = (num: number) => {
+            droneAttitudes.value = Array.from({ length: num }, () => ({
+                roll: 0,
+                pitch: 0,
+                yaw: 0
+            }))
+        }
+        const clamp = (value: number, min: number, max: number) =>
+            Math.min(max, Math.max(min, value))
+        const getWindDisturbance = (timeSec: number) => {
+            return Math.sin(timeSec * 0.5) * windSpeed.value * 0.05
+        }
+
+        const getSimulatedAttitude = (droneIndex: number, timeSec: number) => {
+            const phase = droneIndex * 0.75
+            const wind = windSpeed.value
+            const roll = clamp(0.8 + Math.abs(1.6 * Math.sin(timeSec * 1.8 + phase) + 0.10 * wind), 0, 4)
+            const pitch = clamp(0.7 + Math.abs(1.7 * Math.cos(timeSec * 1.5 + phase + 0.4) + 0.12 * wind),0,4)
+            const yaw = clamp(0.6 + Math.abs(1.8 * Math.sin(timeSec * 0.9 + phase * 0.8) + 0.08 * wind), 0, 4)
+            return { roll, pitch, yaw }
+        }
+
+        const getMotorPwmMix = (droneIndex: number, attitude: { roll: number; pitch: number; yaw: number }) => {
+            const rpm = rotorData.value[droneIndex]?.rpm ?? 5000
+            const thrust = rotorData.value[droneIndex]?.thrust ?? 2.0
+            const basePwm = 1180 + (rpm / RPM_MAX) * 620 + thrust * 12 + droneIndex * 4
+            const rollDelta = (attitude.roll - 2) * 18
+            const pitchDelta = (attitude.pitch - 2) * 16
+            const yawDelta = (attitude.yaw - 2) * 12
+            const windDelta = windSpeed.value * 4
+            return {
+                pwm1: clamp(basePwm + rollDelta + pitchDelta - yawDelta + windDelta, PWM_MIN, PWM_MAX),
+                pwm2: clamp(basePwm - rollDelta + pitchDelta + yawDelta - windDelta * 0.3, PWM_MIN, PWM_MAX),
+                pwm3: clamp(basePwm - rollDelta - pitchDelta - yawDelta + windDelta * 0.2, PWM_MIN, PWM_MAX),
+                pwm4: clamp(basePwm + rollDelta - pitchDelta + yawDelta - windDelta * 0.4, PWM_MIN, PWM_MAX),
+            }
         }
 
         const movAvg = (arr: number[], w: number) => {
@@ -359,60 +409,60 @@ export default defineComponent({
         const controllerRates = ref<number[]>([]);
 
         const scenarios = [
-        {
-            id: 1,
-            title: 'Skenario 1',
-            desc: 'Trayektori persegi, formasi <b>lingkaran</b>, ketinggian antar agent <b>sama</b>.',
-            traj: 'Trayektori: Persegi',
-            form: 'Lingkaran',
-            alt: 'Altitude: Sama',
-            icon: 'ph:square'
-        },
-        {
-            id: 2,
-            title: 'Skenario 2',
-            desc: 'Trayektori <b>jurus miring</b> (campuran lurus & diagonal), formasi <b>lingkaran</b>. Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
-            traj: 'Trayektori: Jurus miring',
-            form: 'Lingkaran',
-            alt: 'Altitude: Lurus sama, diagonal berbeda',
-            icon: 'ph:trend-up'
-        },
-        {
-            id: 3,
-            title: 'Skenario 3',
-            desc: 'Trayektori persegi, formasi <b>elips</b>, ketinggian antar agent <b>sama</b>.',
-            traj: 'Trayektori: Persegi',
-            form: 'Elips',
-            alt: 'Altitude: Sama',
-            icon: 'mdi:ellipse-outline'
-        },
-        {
-            id: 4,
-            title: 'Skenario 4',
-            desc: 'Trayektori <b>jurus miring</b>, formasi <b>elips</b>. Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
-            traj: 'Trayektori: Jurus miring',
-            form: 'Elips',
-            alt: 'Altitude: Lurus sama, diagonal berbeda',
-            icon: 'ph:trend-up'
-        },
-        {
-            id: 5,
-            title: 'Skenario 5',
-            desc: 'Trayektori <b>jurus miring</b> dengan formasi <b>berubah-ubah</b> (lingkaran ⇄ elips). Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
-            traj: 'Trayektori: Jurus miring',
-            form: 'Berganti',
-            alt: 'Altitude: Lurus sama, diagonal berbeda',
-            icon: 'ph:arrows-left-right'
-        },
-        {
-            id: 6,
-            title: 'Skenario 6',
-            desc: 'Skenario <b>awal (legacy)</b>: trayektori campuran (perubahan agent & formasi), <b>wall ON</b>.',
-            traj: 'Trayektori: Legacy campuran',
-            form: 'Campuran',
-            alt: 'Altitude: Sesuai legacy',
-            icon: 'ph:clock-counter-clockwise'
-        }
+            {
+                id: 1,
+                title: 'Skenario 1',
+                desc: 'Trayektori persegi, formasi <b>lingkaran</b>, ketinggian antar agent <b>sama</b>.',
+                traj: 'Trayektori: Persegi',
+                form: 'Lingkaran',
+                alt: 'Altitude: Sama',
+                icon: 'ph:square'
+            },
+            {
+                id: 2,
+                title: 'Skenario 2',
+                desc: 'Trayektori <b>Lurus miring</b> (campuran Lurus & diagonal), formasi <b>lingkaran</b>. Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
+                traj: 'Trayektori: Lurus miring',
+                form: 'Lingkaran',
+                alt: 'Altitude: Lurus sama, diagonal berbeda',
+                icon: 'ph:trend-up'
+            },
+            {
+                id: 3,
+                title: 'Skenario 3',
+                desc: 'Trayektori persegi, formasi <b>elips</b>, ketinggian antar agent <b>sama</b>.',
+                traj: 'Trayektori: Persegi',
+                form: 'Elips',
+                alt: 'Altitude: Sama',
+                icon: 'mdi:ellipse-outline'
+            },
+            {
+                id: 4,
+                title: 'Skenario 4',
+                desc: 'Trayektori <b>Lurus miring</b>, formasi <b>elips</b>. Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
+                traj: 'Trayektori: Lurus miring',
+                form: 'Elips',
+                alt: 'Altitude: Lurus sama, diagonal berbeda',
+                icon: 'ph:trend-up'
+            },
+            {
+                id: 5,
+                title: 'Skenario 5',
+                desc: 'Trayektori <b>Lurus miring</b> dengan formasi <b>berubah-ubah</b> (lingkaran ⇄ elips). Lurus: <b>sama</b>, diagonal: <b>berbeda</b>.',
+                traj: 'Trayektori: Lurus miring',
+                form: 'Berganti',
+                alt: 'Altitude: Lurus sama, diagonal berbeda',
+                icon: 'ph:arrows-left-right'
+            },
+            {
+                id: 6,
+                title: 'Skenario 6',
+                desc: 'Skenario <b>awal (legacy)</b>: trayektori campuran (perubahan agent & formasi), <b>wall ON</b>.',
+                traj: 'Trayektori: Legacy campuran',
+                form: 'Campuran',
+                alt: 'Altitude: Sesuai legacy',
+                icon: 'ph:clock-counter-clockwise'
+            }
         ]
 
         const orientation: any = ref({
@@ -523,12 +573,17 @@ export default defineComponent({
         };
 
 
-        const droneFlightData = ref<{ 
-            x: number, y: number, z: number, 
-            roll: number, pitch: number, yaw: number, 
+        const droneFlightData = ref<{
+            x: number, y: number, z: number,
+            roll: number, pitch: number, yaw: number,
             time: number, droneId: number, formation: string,
+
             x_ref?: number, y_ref?: number, z_ref?: number,
-            roll_ref?: number, pitch_ref?: number, yaw_ref?: number
+            roll_ref?: number, pitch_ref?: number, yaw_ref?: number,
+
+            pwm1: number, pwm2: number, pwm3: number, pwm4: number,
+            massKg: number,
+            windDisturbance: number
         }[]>([])
         
         const flightPositionChartData = ref<any>(null)
@@ -648,41 +703,47 @@ export default defineComponent({
         };
 
         const recordDronePositions = () => {
-            if (frameCounter % trailUpdateInterval === 0) { 
-                const errorFactor = calculateErrorFactor();
-
+            if (frameCounter % trailUpdateInterval === 0) {
+                const errorFactor = calculateErrorFactor()
+                const timeNow = performance.now() / 1000
+                const windDisturbance = getWindDisturbance(timeNow)
                 drones.forEach((drone, i) => {
-                droneTrailData.push({
-                    x: drone.model.position.x,
-                    y: drone.model.position.y,
-                    z: drone.model.position.z,
-                    droneId: i
-                });
-                droneFlightData.value.push({
-                    x: applyError(drone.model.position.x, errorFactor/2),
-                    y: applyError(drone.model.position.y, errorFactor/2),
-                    z: applyError(drone.model.position.z, errorFactor/2),
-                    x_ref: drone.model.position.x,
-                    y_ref: drone.model.position.y,
-                    z_ref: drone.model.position.z,
-                    roll: applyError(orientation.value.roll + 0.05, errorFactor*2),
-                    pitch: applyError(orientation.value.pitch + 0.05, errorFactor*2),
-                    yaw: applyError(orientation.value.yaw + 0.05, errorFactor*2),
-                    roll_ref: orientation.value.roll,
-                    pitch_ref: orientation.value.pitch,
-                    yaw_ref: orientation.value.yaw,
-                    time: performance.now() / 1000,
-                    droneId: i,
-                    formation: formationType.value
-                });
-
-            });
-            renderDroneTrail3D();
-
+                    const attitude = droneAttitudes.value[i] ?? getSimulatedAttitude(i, timeNow)
+                    const pwm = getMotorPwmMix(i, attitude)
+                    droneTrailData.push({
+                        x: drone.model.position.x,
+                        y: drone.model.position.y,
+                        z: drone.model.position.z,
+                        droneId: i
+                    })
+                    droneFlightData.value.push({
+                        x: applyError(drone.model.position.x, errorFactor / 2),
+                        y: applyError(drone.model.position.y, errorFactor / 2),
+                        z: applyError(drone.model.position.z, errorFactor / 2),
+                        x_ref: drone.model.position.x,
+                        y_ref: drone.model.position.y,
+                        z_ref: drone.model.position.z,
+                        roll: attitude.roll,
+                        pitch: attitude.pitch,
+                        yaw: attitude.yaw,
+                        roll_ref: 2.0,
+                        pitch_ref: 2.0,
+                        yaw_ref: 2.0,
+                        pwm1: pwm.pwm1,
+                        pwm2: pwm.pwm2,
+                        pwm3: pwm.pwm3,
+                        pwm4: pwm.pwm4,
+                        massKg: droneMassKg.value,
+                        windDisturbance,
+                        time: timeNow,
+                        droneId: i,
+                        formation: formationType.value
+                    })
+                })
+                renderDroneTrail3D()
             }
-            frameCounter++;
-        };
-
+            frameCounter++
+        }
 
         const addGround = () => {
             const textureLoader = new THREE.TextureLoader();
@@ -761,10 +822,10 @@ export default defineComponent({
                         })
 
                         const propPositions = [
-                            [0.28, 0.05, 0],  // Propeller 1 (depan kanan)
-                            [0, 0.05, -0.28], // Propeller 2 (depan kiri)
-                            [0, 0.05, 0.28], // Propeller 3 (belakang kanan)
-                            [-0.28, 0.05, 0] // Propeller 4 (belakang kiri)
+                            [0.28, 0.05, 0],
+                            [0, 0.05, -0.28],
+                            [0, 0.05, 0.28], 
+                            [-0.28, 0.05, 0]
                         ]
 
                         propellerParts.forEach((part, index) => {
@@ -780,10 +841,7 @@ export default defineComponent({
                                 });
                             }
                         })
-
-
                         drone.add(prop)
-                        
                         resolve({ model: drone, propellers: propellerParts })
                     }, undefined, reject)
                 }, undefined, reject)
@@ -982,12 +1040,21 @@ export default defineComponent({
             if (data.length === 0) return
 
             const times = data.map(d => Number(d.time.toFixed(2)))
-            const rollRaw  = data.map(d => applyError(d.roll,  errorFactor))
+
+            const rollRaw  = data.map(d => applyError(d.roll, errorFactor))
             const pitchRaw = data.map(d => applyError(d.pitch, errorFactor))
-            const yawRaw   = data.map(d => applyError(d.yaw,   errorFactor))
+            const yawRaw   = data.map(d => applyError(d.yaw, errorFactor))
+
             const xRaw = data.map(d => d.x)
             const yRaw = data.map(d => d.y)
             const zRaw = data.map(d => d.z)
+
+            const pwm1Raw = data.map(d => d.pwm1)
+            const pwm2Raw = data.map(d => d.pwm2)
+            const pwm3Raw = data.map(d => d.pwm3)
+            const pwm4Raw = data.map(d => d.pwm4)
+            const massRaw = data.map(d => d.massKg)
+            const windDisturbanceRaw = data.map(d => d.windDisturbance)
 
             const maybeSmooth = (arr: number[]) => smoothing.value ? movAvg(arr, smoothWindow.value) : arr
 
@@ -1000,42 +1067,68 @@ export default defineComponent({
             }
 
             if (chartView.value === 'orientation') {
-                setChartMeta(`Drone ${droneId+1} — Orientation`, 'Angle (°)')
+                setChartMeta(`Drone ${droneId + 1} — Orientation`, 'Angle (°)')
                 flightCombinedChartData.value = {
-                labels: times,
-                datasets: [
-                    { label: 'Roll (°)',  data: maybeSmooth(rollRaw),  borderColor: SERIES_COLOR.roll,  backgroundColor: SERIES_COLOR.roll,  tension: 0.25, fill: false },
-                    { label: 'Pitch (°)', data: maybeSmooth(pitchRaw), borderColor: SERIES_COLOR.pitch, backgroundColor: SERIES_COLOR.pitch, tension: 0.25, fill: false },
-                    { label: 'Yaw (°)',   data: maybeSmooth(yawRaw),   borderColor: SERIES_COLOR.yaw,   backgroundColor: SERIES_COLOR.yaw,   tension: 0.25, fill: false },
-                ]
+                    labels: times,
+                    datasets: [
+                        { label: 'Roll (°)',  data: maybeSmooth(rollRaw),  borderColor: SERIES_COLOR.roll,  backgroundColor: SERIES_COLOR.roll,  tension: 0.25, fill: false },
+                        { label: 'Pitch (°)', data: maybeSmooth(pitchRaw), borderColor: SERIES_COLOR.pitch, backgroundColor: SERIES_COLOR.pitch, tension: 0.25, fill: false },
+                        { label: 'Yaw (°)',   data: maybeSmooth(yawRaw),   borderColor: SERIES_COLOR.yaw,   backgroundColor: SERIES_COLOR.yaw,   tension: 0.25, fill: false },
+                    ]
                 }
                 flightSingleChartData.value = null
             } else if (chartView.value === 'position') {
-                setChartMeta(`Drone ${droneId+1} — Position`, 'Distance (m)')
+                setChartMeta(`Drone ${droneId + 1} — Position`, 'Distance (m)')
                 flightCombinedChartData.value = {
-                labels: times,
-                datasets: [
-                    { label: 'X (m)', data: maybeSmooth(xRaw), borderColor: SERIES_COLOR.x, backgroundColor: SERIES_COLOR.x, tension: 0.25, fill: false },
-                    { label: 'Y (m)', data: maybeSmooth(yRaw), borderColor: SERIES_COLOR.y, backgroundColor: SERIES_COLOR.y, tension: 0.25, fill: false },
-                    { label: 'Z (m)', data: maybeSmooth(zRaw), borderColor: SERIES_COLOR.z, backgroundColor: SERIES_COLOR.z, tension: 0.25, fill: false },
-                ]
+                    labels: times,
+                    datasets: [
+                        { label: 'X (m)', data: maybeSmooth(xRaw), borderColor: SERIES_COLOR.x, backgroundColor: SERIES_COLOR.x, tension: 0.25, fill: false },
+                        { label: 'Y (m)', data: maybeSmooth(yRaw), borderColor: SERIES_COLOR.y, backgroundColor: SERIES_COLOR.y, tension: 0.25, fill: false },
+                        { label: 'Z (m)', data: maybeSmooth(zRaw), borderColor: SERIES_COLOR.z, backgroundColor: SERIES_COLOR.z, tension: 0.25, fill: false },
+                    ]
+                }
+                flightSingleChartData.value = null
+            } else if (chartView.value === 'pwm') {
+                setChartMeta(`Drone ${droneId + 1} — PWM Motors`, 'PWM (µs)')
+                flightCombinedChartData.value = {
+                    labels: times,
+                    datasets: [
+                        { label: 'PWM 1 (µs)', data: maybeSmooth(pwm1Raw), borderColor: SERIES_COLOR.pwm1, backgroundColor: SERIES_COLOR.pwm1, tension: 0.25, fill: false },
+                        { label: 'PWM 2 (µs)', data: maybeSmooth(pwm2Raw), borderColor: SERIES_COLOR.pwm2, backgroundColor: SERIES_COLOR.pwm2, tension: 0.25, fill: false },
+                        { label: 'PWM 3 (µs)', data: maybeSmooth(pwm3Raw), borderColor: SERIES_COLOR.pwm3, backgroundColor: SERIES_COLOR.pwm3, tension: 0.25, fill: false },
+                        { label: 'PWM 4 (µs)', data: maybeSmooth(pwm4Raw), borderColor: SERIES_COLOR.pwm4, backgroundColor: SERIES_COLOR.pwm4, tension: 0.25, fill: false },
+                    ]
                 }
                 flightSingleChartData.value = null
             } else {
-                const map: Record<string, {label: string, unit: string, series: number[]}> = {
-                    roll:  { label: 'Roll',  unit: '°', series: rollRaw },
+                const map: Record<MetricKey, { label: string, unit: string, series: number[] }> = {
+                    roll: { label: 'Roll', unit: '°', series: rollRaw },
                     pitch: { label: 'Pitch', unit: '°', series: pitchRaw },
-                    yaw:   { label: 'Yaw',   unit: '°', series: yawRaw },
-                    x:     { label: 'X',     unit: 'm', series: xRaw },
-                    y:     { label: 'Y',     unit: 'm', series: yRaw },
-                    z:     { label: 'Z',     unit: 'm', series: zRaw },
+                    yaw: { label: 'Yaw', unit: '°', series: yawRaw },
+                    x: { label: 'X', unit: 'm', series: xRaw },
+                    y: { label: 'Y', unit: 'm', series: yRaw },
+                    z: { label: 'Z', unit: 'm', series: zRaw },
+                    pwm1: { label: 'PWM 1', unit: 'µs', series: pwm1Raw },
+                    pwm2: { label: 'PWM 2', unit: 'µs', series: pwm2Raw },
+                    pwm3: { label: 'PWM 3', unit: 'µs', series: pwm3Raw },
+                    pwm4: { label: 'PWM 4', unit: 'µs', series: pwm4Raw },
+                    massKg: { label: 'Mass', unit: 'kg', series: massRaw },
+                    windDisturbance: { label: 'Wind Disturbance', unit: '-', series: windDisturbanceRaw },
                 }
+
                 const m = map[metric.value]
-                setChartMeta(`Drone ${droneId+1} — ${m.label}`, `${m.label} (${m.unit})`)
+                setChartMeta(`Drone ${droneId + 1} — ${m.label}`, `${m.label} (${m.unit})`)
                 flightSingleChartData.value = {
                     labels: times,
                     datasets: [
-                        { label: `${m.label} (${m.unit})`, data: maybeSmooth(m.series), borderColor: SERIES_COLOR[metric.value], backgroundColor: SERIES_COLOR[metric.value], tension: 0.25, fill: false }
+                        {
+                            label: `${m.label} (${m.unit})`,
+                            data: maybeSmooth(m.series),
+                            borderColor: SERIES_COLOR[metric.value],
+                            backgroundColor: SERIES_COLOR[metric.value],
+                            tension: 0.25,
+                            fill: false
+                        }
                     ]
                 }
                 flightCombinedChartData.value = null
@@ -1067,8 +1160,8 @@ export default defineComponent({
                 const points = d.map(dd => new THREE.Vector3(dd.x, dd.y, dd.z))
                 const geometry = new THREE.BufferGeometry().setFromPoints(points)
                 const material = new THREE.LineBasicMaterial({
-                color: colorPalette[i % colorPalette.length],
-                linewidth: 2
+                    color: colorPalette[i % colorPalette.length],
+                    linewidth: 2
                 })
                 const line = new THREE.Line(geometry, material)
                 scene.add(line)
@@ -1080,9 +1173,9 @@ export default defineComponent({
 
             droneFlightData.value.forEach(d => {
                 if (d.formation !== lastFormation) {
-                if (snapshot) formationSnapshots.push(snapshot)
-                snapshot = { time: d.time, type: d.formation, positions: [] }
-                lastFormation = d.formation
+                    if (snapshot) formationSnapshots.push(snapshot)
+                    snapshot = { time: d.time, type: d.formation, positions: [] }
+                    lastFormation = d.formation
                 }
                 snapshot?.positions.push(new THREE.Vector3(d.x, d.y, d.z))
             })
@@ -1090,23 +1183,25 @@ export default defineComponent({
 
             formationSnapshots.forEach(snap => {
                 if (snap.positions.length > 1) {
-                const points = [...snap.positions, snap.positions[0].clone()]
-                const geometry = new THREE.BufferGeometry().setFromPoints(points)
-                const material = new THREE.LineDashedMaterial({
-                    color: 0xffffff, linewidth: 1, dashSize: 1, gapSize: 0.5, transparent: true
-                })
-                const line = new THREE.Line(geometry, material)
-                line.computeLineDistances()
-                if (snap.type === 'ellipse') line.scale.set(1.2, 1, 0.6)
-                scene.add(line)
+                    const points = [...snap.positions, snap.positions[0].clone()]
+                    const geometry = new THREE.BufferGeometry().setFromPoints(points)
+                    const material = new THREE.LineDashedMaterial({
+                        color: 0xffffff, linewidth: 1, dashSize: 1, gapSize: 0.5, transparent: true
+                    })
+                    const line = new THREE.Line(geometry, material)
+                    line.computeLineDistances()
+                    if (snap.type === 'ellipse') line.scale.set(1.2, 1, 0.6)
+                    scene.add(line)
                 }
             })
+
             const animateLocal = () => {
                 requestAnimationFrame(animateLocal)
                 controls.update()
                 renderer.render(scene, camera)
             }
             animateLocal()
+
             const modal = document.getElementById('flight_modal') as HTMLDialogElement
             if (modal && !modal.open) modal.showModal()
         }
@@ -1274,22 +1369,32 @@ export default defineComponent({
         const animate = () => {
             requestAnimationFrame(animate)
             controls.update()
-            updateRotation(orientation.value.roll, orientation.value.pitch, orientation.value.yaw)
-            if (isPropellerRotating.value) {
-                updateSpeed()
-            }
+            if (isPropellerRotating.value) updateSpeed()
             if (isPlaying.value) {
-                recordDronePositions();
-                const timeSec = performance.now() / 1000;
-
+                const timeSec = performance.now() / 1000
+                drones.forEach((drone, i) => {
+                    const attitude = getSimulatedAttitude(i, timeSec)
+                    droneAttitudes.value[i] = attitude
+                    drone.model.rotation.x = THREE.MathUtils.lerp(
+                        drone.model.rotation.x,
+                        THREE.MathUtils.degToRad(attitude.pitch),
+                        0.08
+                    )
+                    drone.model.rotation.z = THREE.MathUtils.lerp(
+                        drone.model.rotation.z,
+                        THREE.MathUtils.degToRad(attitude.roll),
+                        0.08
+                    )
+                })
+                recordDronePositions()
                 drones.forEach((_, i) => {
-                    calculateTSMCAdjustment(i, timeSec);
-                    calculateFlockingAlphaAdjustment(i, timeSec);
-                    calculateEKFEstimationQuality(i, timeSec);
-                    calculateBearingMeasurementError(i, timeSec);
-                    rotorData.value[i].rpm = 5000 + Math.random() * 500;
-                    rotorData.value[i].thrust = 2.0 + Math.random() * 0.2;
-                });
+                    calculateTSMCAdjustment(i, timeSec)
+                    calculateFlockingAlphaAdjustment(i, timeSec)
+                    calculateEKFEstimationQuality(i, timeSec)
+                    calculateBearingMeasurementError(i, timeSec)
+                    rotorData.value[i].rpm = 5000 + Math.random() * 500
+                    rotorData.value[i].thrust = 2.0 + Math.random() * 0.2
+                })
                 generateMethodParameters()
             }
             updateWind()
@@ -1476,26 +1581,40 @@ export default defineComponent({
                 const rows = data.map(row => ({
                     Time: row.time.toFixed(2),
                     DroneID: row.droneId,
+
                     X: row.x.toFixed(3),
                     Y: row.y.toFixed(3),
                     Z: row.z.toFixed(3),
+
                     X_ref: row.x_ref?.toFixed(3),
                     Y_ref: row.y_ref?.toFixed(3),
                     Z_ref: row.z_ref?.toFixed(3),
+
                     Error_X: row.x_ref ? (row.x - row.x_ref).toFixed(3) : '',
                     Error_Y: row.y_ref ? (row.y - row.y_ref).toFixed(3) : '',
                     Error_Z: row.z_ref ? (row.z - row.z_ref).toFixed(3) : '',
+
                     Roll: row.roll.toFixed(2),
                     Pitch: row.pitch.toFixed(2),
                     Yaw: row.yaw.toFixed(2),
+
                     Roll_ref: row.roll_ref?.toFixed(2),
                     Pitch_ref: row.pitch_ref?.toFixed(2),
                     Yaw_ref: row.yaw_ref?.toFixed(2),
+
                     Error_Roll: row.roll_ref ? (row.roll - row.roll_ref).toFixed(2) : '',
                     Error_Pitch: row.pitch_ref ? (row.pitch - row.pitch_ref).toFixed(2) : '',
                     Error_Yaw: row.yaw_ref ? (row.yaw - row.yaw_ref).toFixed(2) : '',
+
+                    PWM_1: row.pwm1.toFixed(2),
+                    PWM_2: row.pwm2.toFixed(2),
+                    PWM_3: row.pwm3.toFixed(2),
+                    PWM_4: row.pwm4.toFixed(2),
+                    Mass_kg: row.massKg.toFixed(3),
+                    Wind_Disturbance: row.windDisturbance.toFixed(4),
+
                     Formation: row.formation
-                }));
+                }))
                 const worksheet = XLSX.utils.json_to_sheet(rows);
                 XLSX.utils.book_append_sheet(workbook, worksheet, `Drone_${droneId + 1}`);
             }
@@ -1508,6 +1627,7 @@ export default defineComponent({
                 await startRendering()
                 generateMethodParameters()
                 initRotorData(numDrones.value)
+                initDroneAttitudes(numDrones.value)
             }, 500)
         })
 

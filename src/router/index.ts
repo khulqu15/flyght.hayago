@@ -44,6 +44,26 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/SpherePage.vue'),
     meta: { title: "Sphere Optimization - Flyght" }
   },
+  {
+    path: '/dual',
+    name: 'DualPage',
+    component: () => import('@/views/DualPage.vue')
+  },
+  {
+    path: '/underdamped',
+    name: 'UnderdampedPage',
+    component: () => import('@/views/UnderdampedPage.vue')
+  },
+  {
+    path: '/hand',
+    name: 'HandPage',
+    component: () => import('@/views/HandPage.vue')
+  },
+  {
+    path: '/oscillatory',
+    name: 'OscillatoryPage',
+    component: () => import('@/views/OscillatoryPage.vue')
+  }
 ]
 
 const router = createRouter({
